@@ -1,194 +1,182 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database');
+const mongoose = require('mongoose');
 
-const Product = sequelize.define('Product', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
+const productSchema = new mongoose.Schema({
   name: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
-    validate: {
-      notEmpty: {
-        msg: 'El nombre del producto es obligatorio'
-      },
-      len: {
-        args: [2, 100],
-        msg: 'El nombre debe tener entre 2 y 100 caracteres'
-      }
-    }
+    type: String,
+    required: [true, 'El nombre del producto es requerido'],
+    trim: true,
+    maxlength: [100, 'El nombre no puede exceder 100 caracteres']
   },
   description: {
-    type: DataTypes.TEXT,
-    allowNull: false,
-    validate: {
-      notEmpty: {
-        msg: 'La descripción es obligatoria'
-      }
-    }
+    type: String,
+    required: [true, 'La descripción es requerida'],
+    maxlength: [1000, 'La descripción no puede exceder 1000 caracteres']
   },
   price: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    validate: {
-      min: {
-        args: [0],
-        msg: 'El precio no puede ser negativo'
-      }
-    }
+    type: Number,
+    required: [true, 'El precio es requerido'],
+    min: [0, 'El precio no puede ser negativo']
   },
-  original_price: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: true,
-    validate: {
-      min: {
-        args: [0],
-        msg: 'El precio original no puede ser negativo'
-      }
-    }
-  },
-  category_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'categories',
-      key: 'id'
-    }
-  },
-  brand: {
-    type: DataTypes.ENUM('Shimano', 'SRAM', 'Campagnolo', 'Otras'),
-    allowNull: false,
-    defaultValue: 'Shimano'
-  },
-  model: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
-    validate: {
-      notEmpty: {
-        msg: 'El modelo es obligatorio'
-      }
-    }
-  },
-  sku: {
-    type: DataTypes.STRING(50),
-    allowNull: false,
-    unique: true,
-    validate: {
-      notEmpty: {
-        msg: 'El SKU es obligatorio'
-      }
-    }
-  },
-  images: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    defaultValue: []
+  originalPrice: {
+    type: Number,
+    min: [0, 'El precio original no puede ser negativo']
   },
   stock: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
-    validate: {
-      min: {
-        args: [0],
-        msg: 'El stock no puede ser negativo'
-      }
+    type: Number,
+    required: [true, 'El stock es requerido'],
+    min: [0, 'El stock no puede ser negativo'],
+    default: 0
+  },
+  sku: {
+    type: String,
+    required: [true, 'El SKU es requerido'],
+    unique: true,
+    trim: true,
+    uppercase: true
+  },
+  brand: {
+    type: String,
+    required: [true, 'La marca es requerida'],
+    trim: true
+  },
+  model: {
+    type: String,
+    trim: true
+  },
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: [true, 'La categoría es requerida']
+  },
+  images: [{
+    url: {
+      type: String,
+      required: true
+    },
+    alt: {
+      type: String,
+      default: ''
+    },
+    isPrimary: {
+      type: Boolean,
+      default: false
     }
-  },
+  }],
   specifications: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    defaultValue: {}
+    weight: String,
+    dimensions: String,
+    material: String,
+    color: String,
+    warranty: String
   },
-  features: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    defaultValue: []
+  features: [String],
+  tags: [String],
+  isActive: {
+    type: Boolean,
+    default: true
   },
-  is_active: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
+  isFeatured: {
+    type: Boolean,
+    default: false
   },
-  is_featured: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
+  views: {
+    type: Number,
+    default: 0
   },
-  tags: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    defaultValue: []
+  sales: {
+    type: Number,
+    default: 0
   },
-  average_rating: {
-    type: DataTypes.DECIMAL(3, 2),
-    defaultValue: 0,
-    validate: {
+  rating: {
+    average: {
+      type: Number,
+      default: 0,
       min: 0,
       max: 5
+    },
+    count: {
+      type: Number,
+      default: 0
     }
-  },
-  total_reviews: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
-  },
-  weight: {
-    type: DataTypes.STRING(50),
-    allowNull: true
-  },
-  material: {
-    type: DataTypes.STRING(100),
-    allowNull: true
-  },
-  color: {
-    type: DataTypes.STRING(50),
-    allowNull: true
-  },
-  size: {
-    type: DataTypes.STRING(50),
-    allowNull: true
-  },
-  compatibility: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  warranty: {
-    type: DataTypes.STRING(100),
-    allowNull: true
   }
 }, {
-  tableName: 'products',
   timestamps: true,
-  underscored: true,
-  indexes: [
-    {
-      fields: ['name']
-    },
-    {
-      fields: ['sku']
-    },
-    {
-      fields: ['category_id']
-    },
-    {
-      fields: ['brand']
-    },
-    {
-      fields: ['price']
-    },
-    {
-      fields: ['is_active', 'is_featured']
-    },
-    {
-      fields: ['stock']
-    }
-  ]
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Relaciones
-Product.belongsTo(require('./Category'), {
-  foreignKey: 'category_id',
-  as: 'category'
+// Índices
+productSchema.index({ name: 'text', description: 'text', brand: 'text' });
+productSchema.index({ category: 1 });
+productSchema.index({ brand: 1 });
+productSchema.index({ sku: 1 });
+productSchema.index({ isActive: 1 });
+productSchema.index({ isFeatured: 1 });
+productSchema.index({ price: 1 });
+
+// Virtual para calcular descuento
+productSchema.virtual('discount').get(function() {
+  if (this.originalPrice && this.originalPrice > this.price) {
+    return Math.round(((this.originalPrice - this.price) / this.originalPrice) * 100);
+  }
+  return 0;
 });
 
-module.exports = Product;
+// Virtual para obtener imagen principal
+productSchema.virtual('primaryImage').get(function() {
+  const primary = this.images.find(img => img.isPrimary);
+  return primary ? primary.url : (this.images[0] ? this.images[0].url : null);
+});
+
+// Virtual para verificar si hay stock bajo
+productSchema.virtual('isLowStock').get(function() {
+  return this.stock <= 5;
+});
+
+// Método para incrementar vistas
+productSchema.methods.incrementViews = function() {
+  this.views += 1;
+  return this.save();
+};
+
+// Método para incrementar ventas
+productSchema.methods.incrementSales = function(quantity = 1) {
+  this.sales += quantity;
+  this.stock = Math.max(0, this.stock - quantity);
+  return this.save();
+};
+
+// Método estático para buscar productos
+productSchema.statics.searchProducts = function(query, filters = {}) {
+  const searchQuery = {};
+  
+  if (query) {
+    searchQuery.$text = { $search: query };
+  }
+  
+  if (filters.category) {
+    searchQuery.category = filters.category;
+  }
+  
+  if (filters.brand) {
+    searchQuery.brand = new RegExp(filters.brand, 'i');
+  }
+  
+  if (filters.minPrice || filters.maxPrice) {
+    searchQuery.price = {};
+    if (filters.minPrice) searchQuery.price.$gte = filters.minPrice;
+    if (filters.maxPrice) searchQuery.price.$lte = filters.maxPrice;
+  }
+  
+  if (filters.inStock) {
+    searchQuery.stock = { $gt: 0 };
+  }
+  
+  searchQuery.isActive = true;
+  
+  return this.find(searchQuery)
+    .populate('category', 'name slug')
+    .sort({ isFeatured: -1, createdAt: -1 });
+};
+
+module.exports = mongoose.model('Product', productSchema);

@@ -1,7 +1,23 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { Search, Bell, User, Menu, Settings } from 'lucide-react';
 
-const AdminHeader = ({ onMenuToggle, currentPage = 'Dashboard' }) => {
+const AdminHeader = ({ onMenuToggle }) => {
+  const location = useLocation();
+  
+  const getPageTitle = (pathname) => {
+    switch (pathname) {
+      case '/admin/dashboard': return 'Dashboard';
+      case '/admin/productos': return 'Productos';
+      case '/admin/mensajes': return 'Mensajes';
+      case '/admin/ordenes': return 'Órdenes';
+      case '/admin/reportes': return 'Reportes';
+      case '/admin/configuracion': return 'Configuración';
+      default: return 'Dashboard';
+    }
+  };
+  
+  const currentPage = getPageTitle(location.pathname);
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">

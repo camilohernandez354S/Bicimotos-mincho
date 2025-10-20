@@ -1,263 +1,204 @@
-# 🚴‍♂️ Bicimotos Mincho
+# Bicimotos Mincho - Sistema de Gestión
 
-**Tu tienda online de confianza para componentes Shimano**
+Sistema web para la gestión de componentes de bicicletas, especialmente productos Shimano. El sitio es completamente público para visitantes y tiene un panel privado exclusivo para administradores.
 
-Una plataforma completa de e-commerce especializada en componentes de bicicletas, especialmente productos Shimano originales. Desarrollada con tecnologías modernas para ofrecer la mejor experiencia de compra online.
+## 🚀 Características
 
-## 🌟 Características Principales
+### Públicas (Sin registro requerido)
+- ✅ **Catálogo de productos** con filtros y búsqueda
+- ✅ **Detalle de productos** con especificaciones técnicas
+- ✅ **Información de contacto** y formulario de consultas
+- ✅ **Diseño responsive** y moderno
+- ✅ **Navegación intuitiva** con categorías
 
-- **🛒 Catálogo Completo**: Productos Shimano originales con información detallada
-- **🛍️ Carrito Inteligente**: Gestión de compras en tiempo real
-- **👤 Sistema de Usuarios**: Registro, login y gestión de perfiles
-- **📱 Responsive Design**: Optimizado para todos los dispositivos
-- **🔒 Seguridad**: Autenticación JWT y validación de datos
-- **💳 Sistema de Pagos**: Integración con MercadoPago y PayPal
-- **📦 Gestión de Órdenes**: Seguimiento completo del proceso de compra
-- **🚀 Despliegue Fácil**: Docker y scripts automatizados
+### Administración (Login requerido)
+- 🔐 **Login seguro** con JWT
+- 📊 **Dashboard** con estadísticas en tiempo real
+- 📦 **Gestión de productos** (CRUD completo)
+- 👥 **Gestión de usuarios** (CRUD completo)
+- 📧 **Mensajes de contacto** con sistema de respuestas
+- 📈 **Reportes y estadísticas**
 
-## 🏗️ Arquitectura del Proyecto
+## 🛠️ Tecnologías
 
-```
-bicimotos-mincho/
-├── backend/                 # API REST con Node.js y Express
-│   ├── src/
-│   │   ├── models/         # Modelos de Sequelize (PostgreSQL)
-│   │   ├── routes/          # Rutas de la API
-│   │   ├── controllers/     # Controladores de lógica
-│   │   └── config/          # Configuración de BD
-│   └── Dockerfile
-├── frontend/                # Aplicación React
-│   ├── src/
-│   │   ├── components/      # Componentes reutilizables
-│   │   ├── contexts/        # Contextos de React
-│   │   ├── services/        # Servicios de API
-│   │   └── config/          # Configuración de la app
-│   └── Dockerfile
-├── nginx/                   # Configuración de Nginx
-├── docker-compose.yml       # Orquestación de servicios
-└── deploy.ps1              # Script de despliegue
-```
+### Backend
+- **Node.js** + **Express.js**
+- **MongoDB** + **Mongoose**
+- **JWT** para autenticación
+- **Bcrypt** para encriptación
+- **CORS** y **Helmet** para seguridad
 
-## 🚀 Inicio Rápido
+### Frontend
+- **React** + **React Router**
+- **Tailwind CSS** para estilos
+- **Lucide React** para iconos
+- **React Hot Toast** para notificaciones
+- **Axios** para llamadas API
 
-### Prerrequisitos
+## 📋 Requisitos Previos
 
-- **Node.js** (v16 o superior)
-- **Docker** y **Docker Compose**
-- **PostgreSQL** (si ejecutas localmente)
+- Node.js (v16 o superior)
+- MongoDB (local o Atlas)
+- npm o yarn
 
-### Instalación con Docker (Recomendado)
+## 🚀 Instalación
 
-1. **Clonar el repositorio**
+### 1. Clonar el repositorio
 ```bash
-git clone <repository-url>
+git clone <url-del-repositorio>
 cd bicimotos-mincho
 ```
 
-2. **Configurar variables de entorno**
-```bash
-# Copiar archivo de ejemplo
-cp backend/env.example backend/.env
-
-# Editar variables según tu entorno
-# DB_PASSWORD, JWT_SECRET, etc.
-```
-
-3. **Desplegar con Docker**
-```bash
-# Windows PowerShell
-.\deploy.ps1 development
-
-# Linux/Mac
-./deploy.sh development
-```
-
-4. **Acceder a la aplicación**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000/api
-- Base de datos: localhost:5432
-
-### Instalación Manual
-
-#### Backend
+### 2. Instalar dependencias del backend
 ```bash
 cd backend
 npm install
-cp env.example .env
-# Configurar variables en .env
-npm run dev
 ```
 
-#### Frontend
+### 3. Instalar dependencias del frontend
 ```bash
-cd frontend
+cd ../frontend
 npm install
-npm start
 ```
 
-## 🛠️ Tecnologías Utilizadas
-
-### Backend
-- **Node.js** + **Express.js** - Servidor web
-- **PostgreSQL** + **Sequelize** - Base de datos y ORM
-- **JWT** - Autenticación
-- **Bcrypt** - Hash de contraseñas
-- **Express Validator** - Validación de datos
-- **Helmet** - Seguridad HTTP
-- **CORS** - Cross-origin requests
-
-### Frontend
-- **React 18** - Framework de UI
-- **Tailwind CSS** - Framework de estilos
-- **Axios** - Cliente HTTP
-- **React Hook Form** - Manejo de formularios
-- **React Hot Toast** - Notificaciones
-- **Lucide React** - Iconos
-- **Context API** - Manejo de estado
-
-### DevOps
-- **Docker** + **Docker Compose** - Contenedores
-- **Nginx** - Proxy reverso y servidor web
-- **PostgreSQL** - Base de datos
-
-## 📚 API Documentation
-
-### Autenticación
-- `POST /api/auth/register` - Registro de usuario
-- `POST /api/auth/login` - Inicio de sesión
-- `GET /api/auth/me` - Perfil del usuario
-
-### Productos
-- `GET /api/products` - Listar productos (con filtros)
-- `GET /api/products/:id` - Obtener producto específico
-- `GET /api/products/featured/list` - Productos destacados
-
-### Carrito
-- `GET /api/cart` - Obtener carrito
-- `POST /api/cart/add` - Agregar producto
-- `PUT /api/cart/update` - Actualizar cantidad
-- `DELETE /api/cart/remove` - Remover producto
-
-### Órdenes
-- `GET /api/orders` - Listar órdenes
-- `POST /api/orders` - Crear orden
-- `PUT /api/orders/:id/cancel` - Cancelar orden
-
-## 🎨 Tema y Diseño
-
-El proyecto utiliza un esquema de colores distintivo:
-
-- **Negro** (`#000000`) - Fondo principal
-- **Rojo** (`#FF0000`) - Acentos y botones
-- **Amarillo** (`#FFF200`) - Texto principal
-
-Diseño completamente responsive optimizado para:
-- 📱 Mobile (320px - 767px)
-- 📱 Tablet (768px - 1199px)
-- 💻 Desktop (1200px+)
-
-## 🔧 Configuración
-
-### Variables de Entorno
+### 4. Configurar variables de entorno
 
 #### Backend (.env)
+```bash
+cd backend
+cp env.example .env
+```
+
+Editar el archivo `.env`:
 ```env
 NODE_ENV=development
 PORT=5000
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=bicimotos_mincho
-DB_USER=postgres
-DB_PASSWORD=tu_password
-JWT_SECRET=tu_jwt_secret_seguro
+MONGODB_URI=mongodb://localhost:27017/bicimotos-mincho
+JWT_SECRET=tu_jwt_secret_super_seguro_aqui
+JWT_EXPIRES_IN=24h
 FRONTEND_URL=http://localhost:3000
 ```
 
 #### Frontend (.env)
-```env
-REACT_APP_API_URL=http://localhost:5000/api
-REACT_APP_MERCADOPAGO_PUBLIC_KEY=tu_mercadopago_key
-REACT_APP_PAYPAL_CLIENT_ID=tu_paypal_client_id
-```
-
-## 🚀 Despliegue en Producción
-
-### Con Docker (Recomendado)
-
-1. **Configurar variables de producción**
-```bash
-$env:PROD_DB_PASSWORD = "password_super_seguro"
-$env:PROD_JWT_SECRET = "jwt_secret_muy_seguro"
-```
-
-2. **Desplegar**
-```bash
-.\deploy.ps1 production
-```
-
-### Manual
-
-1. **Build del frontend**
 ```bash
 cd frontend
-npm run build
+echo "REACT_APP_API_URL=http://localhost:5000/api" > .env
 ```
 
-2. **Configurar servidor web** (Nginx/Apache)
-3. **Configurar base de datos** PostgreSQL
-4. **Ejecutar backend** con PM2 o similar
+### 5. Iniciar MongoDB
+Asegúrate de que MongoDB esté ejecutándose en tu sistema.
 
-## 📊 Monitoreo y Logs
+### 6. Ejecutar la aplicación
 
+#### Terminal 1 - Backend
 ```bash
-# Ver logs de todos los servicios
-docker-compose logs -f
-
-# Ver logs de un servicio específico
-docker-compose logs -f backend
-docker-compose logs -f frontend
-docker-compose logs -f postgres
-```
-
-## 🧪 Testing
-
-```bash
-# Backend
 cd backend
-npm test
-
-# Frontend
-cd frontend
-npm test
+npm start
 ```
 
-## 🤝 Contribución
+#### Terminal 2 - Frontend
+```bash
+cd frontend
+npm start
+```
 
-1. Fork el proyecto
-2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir un Pull Request
+## 🌐 Acceso a la Aplicación
 
-## 📝 Licencia
+### Sitio Público
+- **URL**: http://localhost:3000
+- **Rutas disponibles**:
+  - `/` - Página de inicio
+  - `/productos` - Catálogo de productos
+  - `/producto/:id` - Detalle de producto
+  - `/contacto` - Formulario de contacto
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+### Panel de Administración
+- **URL**: http://localhost:3000/admin/login
+- **Credenciales por defecto**:
+  - **Email**: admin@bicimotosmincho.com
+  - **Contraseña**: BicimotosMincho2024!
+
+## 📁 Estructura del Proyecto
+
+```
+bicimotos-mincho/
+├── backend/
+│   ├── src/
+│   │   ├── models/          # Modelos de MongoDB
+│   │   ├── controllers/     # Controladores de rutas
+│   │   ├── middlewares/     # Middlewares (JWT, etc.)
+│   │   ├── routes/          # Rutas públicas y privadas
+│   │   └── app.js          # Configuración principal
+│   ├── package.json
+│   └── env.example
+├── frontend/
+│   ├── src/
+│   │   ├── pages/          # Páginas principales
+│   │   ├── components/     # Componentes reutilizables
+│   │   ├── services/       # Servicios de API
+│   │   └── App.jsx         # Configuración de rutas
+│   ├── package.json
+│   └── public/
+└── README.md
+```
+
+## 🔧 API Endpoints
+
+### Públicos
+- `GET /api/products` - Listar productos
+- `GET /api/products/:id` - Obtener producto por ID
+- `GET /api/categories` - Listar categorías
+- `POST /api/contact` - Enviar mensaje de contacto
+
+### Privados (Admin)
+- `POST /api/admin/login` - Login de administrador
+- `GET /api/admin/dashboard` - Dashboard con estadísticas
+- `GET /api/admin/products` - Gestión de productos
+- `POST /api/admin/products` - Crear producto
+- `PUT /api/admin/products/:id` - Actualizar producto
+- `DELETE /api/admin/products/:id` - Eliminar producto
+
+## 🔐 Seguridad
+
+- **JWT** para autenticación de administradores
+- **Bcrypt** para encriptación de contraseñas
+- **Rate limiting** para prevenir ataques
+- **CORS** configurado para el frontend
+- **Helmet** para headers de seguridad
+- **Validación** de datos en backend y frontend
+
+## 🎨 Personalización
+
+### Colores de marca
+Los colores principales están definidos en `frontend/tailwind.config.js`:
+- **Primary**: #DC2626 (Rojo)
+- **Secondary**: #F59E0B (Amarillo)
+- **Accent**: #000000 (Negro)
+
+### Componentes
+Todos los componentes están en `frontend/src/components/` y son completamente personalizables.
+
+## 🚀 Despliegue
+
+### Backend (Heroku, Railway, etc.)
+1. Configurar variables de entorno en el servicio
+2. Conectar a MongoDB Atlas
+3. Desplegar el código
+
+### Frontend (Vercel, Netlify, etc.)
+1. Configurar `REACT_APP_API_URL` con la URL del backend
+2. Desplegar el código
 
 ## 📞 Soporte
 
+Para soporte técnico o consultas:
 - **Email**: info@bicimotosmincho.com
 - **Teléfono**: +57 300 123 4567
-- **WhatsApp**: [Enlace directo](https://wa.me/573001234567)
 
-## 🙏 Agradecimientos
+## 📄 Licencia
 
-- **Shimano** por los productos de calidad
-- **React** y **Node.js** communities
-- **Tailwind CSS** por el framework de estilos
-- Todos los contribuidores del proyecto
+Este proyecto es privado y está destinado exclusivamente para Bicimotos Mincho.
 
 ---
 
-**Bicimotos Mincho** - Tu tienda de confianza para componentes Shimano 🚴‍♂️
-
-*Desarrollado con ❤️ para la comunidad ciclista*
+**Desarrollado con ❤️ para Bicimotos Mincho**

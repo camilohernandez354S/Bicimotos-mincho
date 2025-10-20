@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 
-const AdminLayout = ({ children, currentPage = 'Dashboard' }) => {
+const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -15,14 +16,11 @@ const AdminLayout = ({ children, currentPage = 'Dashboard' }) => {
         {/* Header */}
         <AdminHeader 
           onMenuToggle={() => setSidebarOpen(true)} 
-          currentPage={currentPage}
         />
         
         {/* Contenido */}
         <main className="flex-1 p-6 lg:p-8">
-          <div className="animate-fade-in">
-            {children}
-          </div>
+          <Outlet />
         </main>
       </div>
     </div>

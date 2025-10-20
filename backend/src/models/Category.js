@@ -1,89 +1,147 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database');
+const mongoose = require('mongoose');
 
-const Category = sequelize.define('Category', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
+const categorySchema = new mongoose.Schema({
   name: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
+    type: String,
+    required: [true, 'El nombre de la categoría es requerido'],
+    trim: true,
     unique: true,
-    validate: {
-      notEmpty: {
-        msg: 'El nombre de la categoría es obligatorio'
-      },
-      len: {
-        args: [2, 100],
-        msg: 'El nombre debe tener entre 2 y 100 caracteres'
-      }
-    }
-  },
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: true
+    maxlength: [50, 'El nombre no puede exceder 50 caracteres']
   },
   slug: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
+    type: String,
+    required: true,
     unique: true,
-    validate: {
-      notEmpty: {
-        msg: 'El slug es obligatorio'
-      }
-    }
+    lowercase: true,
+    trim: true
+  },
+  description: {
+    type: String,
+    maxlength: [500, 'La descripción no puede exceder 500 caracteres']
   },
   image: {
-    type: DataTypes.STRING(255),
-    allowNull: true
+    type: String,
+    default: null
   },
-  parent_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'categories',
-      key: 'id'
-    }
+  icon: {
+    type: String,
+    default: null
   },
-  is_active: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
+  parent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    default: null
   },
-  sort_order: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
+  level: {
+    type: Number,
+    default: 0
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  sortOrder: {
+    type: Number,
+    default: 0
+  },
+  seo: {
+    title: String,
+    description: String,
+    keywords: [String]
   }
 }, {
-  tableName: 'categories',
   timestamps: true,
-  underscored: true,
-  indexes: [
-    {
-      fields: ['name']
-    },
-    {
-      fields: ['slug']
-    },
-    {
-      fields: ['parent_id']
-    },
-    {
-      fields: ['is_active']
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Índices
+categorySchema.index({ slug: 1 });
+categorySchema.index({ parent: 1 });
+categorySchema.index({ isActive: 1 });
+categorySchema.index({ sortOrder: 1 });
+
+// Virtual para contar productos
+categorySchema.virtual('productCount', {
+  ref: 'Product',
+  localField: '_id',
+  foreignField: 'category',
+  count: true
+});
+
+// Virtual para subcategorías
+categorySchema.virtual('subcategories', {
+  ref: 'Category',
+  localField: '_id',
+  foreignField: 'parent'
+});
+
+// Middleware para generar slug automáticamente
+categorySchema.pre('save', function(next) {
+  if (this.isModified('name') && !this.slug) {
+    this.slug = this.name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+      .replace(/[^a-z0-9\s-]/g, '') // Remover caracteres especiales
+      .replace(/\s+/g, '-') // Reemplazar espacios con guiones
+      .replace(/-+/g, '-') // Reemplazar múltiples guiones con uno solo
+      .trim('-'); // Remover guiones al inicio y final
+  }
+  next();
+});
+
+// Middleware para calcular nivel automáticamente
+categorySchema.pre('save', async function(next) {
+  if (this.isModified('parent')) {
+    if (this.parent) {
+      const parentCategory = await this.constructor.findById(this.parent);
+      this.level = parentCategory ? parentCategory.level + 1 : 0;
+    } else {
+      this.level = 0;
     }
-  ]
+  }
+  next();
 });
 
-// Relaciones
-Category.hasMany(Category, {
-  as: 'subcategories',
-  foreignKey: 'parent_id'
-});
+// Método estático para obtener categorías con jerarquía
+categorySchema.statics.getHierarchy = function() {
+  return this.find({ isActive: true })
+    .populate('subcategories')
+    .sort({ sortOrder: 1, name: 1 });
+};
 
-Category.belongsTo(Category, {
-  as: 'parent',
-  foreignKey: 'parent_id'
-});
+// Método estático para obtener categorías principales
+categorySchema.statics.getMainCategories = function() {
+  return this.find({ 
+    isActive: true, 
+    parent: null 
+  }).sort({ sortOrder: 1, name: 1 });
+};
 
-module.exports = Category;
+// Método estático para obtener subcategorías
+categorySchema.statics.getSubcategories = function(parentId) {
+  return this.find({ 
+    isActive: true, 
+    parent: parentId 
+  }).sort({ sortOrder: 1, name: 1 });
+};
+
+// Método para obtener ruta completa de la categoría
+categorySchema.methods.getFullPath = async function() {
+  const path = [this.name];
+  let current = this;
+  
+  while (current.parent) {
+    current = await this.constructor.findById(current.parent);
+    if (current) {
+      path.unshift(current.name);
+    } else {
+      break;
+    }
+  }
+  
+  return path.join(' > ');
+};
+
+module.exports = mongoose.model('Category', categorySchema);

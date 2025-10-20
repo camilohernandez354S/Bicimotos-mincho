@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   BarChart3, 
   Package, 
-  Users, 
   ShoppingCart, 
   TrendingUp, 
   Settings,
+  MessageSquare,
   Menu,
   X,
   ChevronRight
@@ -13,14 +14,14 @@ import {
 import clsx from 'clsx';
 
 const AdminSidebar = ({ isOpen, onClose }) => {
-  const [activeItem, setActiveItem] = useState('dashboard');
+  const location = useLocation();
 
   const menuItems = [
     { 
       id: 'dashboard', 
       icon: BarChart3, 
       label: 'Dashboard', 
-      href: '/admin',
+      href: '/admin/dashboard',
       badge: null
     },
     { 
@@ -31,11 +32,11 @@ const AdminSidebar = ({ isOpen, onClose }) => {
       badge: '156'
     },
     { 
-      id: 'usuarios', 
-      icon: Users, 
-      label: 'Usuarios', 
-      href: '/admin/usuarios',
-      badge: '1.2K'
+      id: 'mensajes', 
+      icon: MessageSquare, 
+      label: 'Mensajes', 
+      href: '/admin/mensajes',
+      badge: '7'
     },
     { 
       id: 'ordenes', 
@@ -88,22 +89,23 @@ const AdminSidebar = ({ isOpen, onClose }) => {
           
           {/* Menú */}
           <nav className="space-y-2">
-            {menuItems.map((item) => (
-              <a
-                key={item.id}
-                href={item.href}
-                onClick={() => setActiveItem(item.id)}
-                className={clsx(
-                  'flex items-center justify-between px-4 py-3 rounded-lg font-medium transition-all duration-200 group',
-                  activeItem === item.id
-                    ? 'bg-primary-50 text-primary-600 border-r-2 border-primary-500'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                )}
-              >
+            {menuItems.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.id}
+                  to={item.href}
+                  className={clsx(
+                    'flex items-center justify-between px-4 py-3 rounded-lg font-medium transition-all duration-200 group',
+                    isActive
+                      ? 'bg-primary-50 text-primary-600 border-r-2 border-primary-500'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )}
+                >
                 <div className="flex items-center gap-3">
                   <item.icon className={clsx(
                     'w-5 h-5 transition-colors',
-                    activeItem === item.id ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
+                    isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
                   )} />
                   <span>{item.label}</span>
                 </div>
@@ -112,7 +114,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                   {item.badge && (
                     <span className={clsx(
                       'px-2 py-1 text-xs font-bold rounded-full',
-                      activeItem === item.id 
+                      isActive 
                         ? 'bg-primary-100 text-primary-700'
                         : 'bg-gray-100 text-gray-600'
                     )}>
@@ -121,18 +123,19 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                   )}
                   <ChevronRight className={clsx(
                     'w-4 h-4 transition-transform',
-                    activeItem === item.id ? 'rotate-90 text-primary-600' : 'text-gray-400'
+                    isActive ? 'rotate-90 text-primary-600' : 'text-gray-400'
                   )} />
                 </div>
-              </a>
-            ))}
+              </Link>
+              );
+            })}
           </nav>
 
           {/* Footer del sidebar */}
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
               <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                <Users className="w-4 h-4 text-primary-600" />
+                <Settings className="w-4 h-4 text-primary-600" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">Admin User</p>

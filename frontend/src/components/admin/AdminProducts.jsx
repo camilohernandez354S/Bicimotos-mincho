@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import AdminLayout from './AdminLayout';
 import adminProductsService from '../../services/adminProductsService';
 import { 
   Plus, 
@@ -426,7 +425,7 @@ const AdminProducts = () => {
   };
 
   return (
-    <AdminLayout currentPage="Productos">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -612,7 +611,7 @@ const AdminProducts = () => {
 
       {/* Modal */}
       <ProductModal />
-    </AdminLayout>
+    </div>
   );
 };
 
