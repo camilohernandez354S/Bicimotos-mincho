@@ -15,6 +15,11 @@ class AdminAuthService {
 
       const data = await response.json();
 
+      if (!response.ok) {
+        // Si la respuesta no es exitosa, lanzar error con el mensaje del servidor
+        throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
+      }
+
       if (data.success) {
         // Guardar token y datos del admin
         localStorage.setItem('admin_token', data.token);
@@ -25,6 +30,10 @@ class AdminAuthService {
       }
     } catch (error) {
       console.error('Error en login:', error);
+      // Si es un error de red, proporcionar un mensaje más amigable
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté ejecutándose.');
+      }
       throw error;
     }
   }

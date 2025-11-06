@@ -2,14 +2,16 @@ const jwt = require('jsonwebtoken');
 const AdminUser = require('../models/AdminUser');
 
 // Generar token JWT
-const generateToken = (adminId) => {
-  return jwt.sign({ adminId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '24h'
-  });
+const generateToken = (adminId, email) => {
+  return jwt.sign(
+    { id: adminId, email: email },
+    process.env.JWT_SECRET || 'mincho_secret_key',
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+  );
 };
 
 // Login del administrador
-const login = async (req, res) => {
+exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -22,10 +24,7 @@ const login = async (req, res) => {
     }
 
     // Buscar admin por email
-    const admin = await AdminUser.findOne({ 
-      email: email.toLowerCase(),
-      isActive: true 
-    });
+    const admin = await AdminUser.findByEmail(email);
 
     if (!admin) {
       return res.status(401).json({
@@ -34,40 +33,24 @@ const login = async (req, res) => {
       });
     }
 
-    // Verificar si la cuenta está bloqueada
-    if (admin.isLocked) {
-      return res.status(423).json({
-        success: false,
-        message: 'Cuenta bloqueada temporalmente. Intenta más tarde.'
-      });
-    }
-
     // Verificar contraseña
-    const isPasswordValid = await admin.comparePassword(password);
+    const isPasswordValid = await AdminUser.validatePassword(password, admin.password);
 
     if (!isPasswordValid) {
-      // Incrementar intentos de login
-      await admin.incLoginAttempts();
-      
       return res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
       });
     }
 
-    // Resetear intentos de login y actualizar último acceso
-    await admin.resetLoginAttempts();
-
     // Generar token
-    const token = generateToken(admin._id);
+    const token = generateToken(admin.id, admin.email);
 
     // Datos del admin para enviar (sin contraseña)
     const adminData = {
-      id: admin._id,
-      name: admin.name,
+      id: admin.id,
       email: admin.email,
-      role: admin.role,
-      lastLogin: admin.lastLogin
+      createdAt: admin.created_at
     };
 
     res.status(200).json({
@@ -86,8 +69,17 @@ const login = async (req, res) => {
   }
 };
 
+// Crear admin por defecto si no existe
+exports.ensureDefaultAdmin = async () => {
+  try {
+    await AdminUser.createDefaultAdmin();
+  } catch (error) {
+    console.error('Error creando admin por defecto:', error);
+  }
+};
+
 // Verificar token y obtener datos del admin
-const verifyToken = async (req, res) => {
+exports.verifyToken = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
@@ -99,12 +91,12 @@ const verifyToken = async (req, res) => {
     }
 
     // Verificar token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'mincho_secret_key');
     
     // Buscar admin
-    const admin = await AdminUser.findById(decoded.adminId).select('-password');
+    const admin = await AdminUser.findById(decoded.id);
 
-    if (!admin || !admin.isActive) {
+    if (!admin) {
       return res.status(401).json({
         success: false,
         message: 'Token inválido'
@@ -114,11 +106,9 @@ const verifyToken = async (req, res) => {
     res.status(200).json({
       success: true,
       admin: {
-        id: admin._id,
-        name: admin.name,
+        id: admin.id,
         email: admin.email,
-        role: admin.role,
-        lastLogin: admin.lastLogin
+        createdAt: admin.created_at
       }
     });
 
@@ -146,7 +136,7 @@ const verifyToken = async (req, res) => {
 };
 
 // Logout (opcional, ya que JWT es stateless)
-const logout = async (req, res) => {
+exports.logout = async (req, res) => {
   try {
     // En un sistema JWT stateless, el logout se maneja en el frontend
     // eliminando el token del localStorage
@@ -164,7 +154,7 @@ const logout = async (req, res) => {
 };
 
 // Cambiar contraseña
-const changePassword = async (req, res) => {
+exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const adminId = req.admin.id;
@@ -194,7 +184,7 @@ const changePassword = async (req, res) => {
     }
 
     // Verificar contraseña actual
-    const isCurrentPasswordValid = await admin.comparePassword(currentPassword);
+    const isCurrentPasswordValid = await AdminUser.validatePassword(currentPassword, admin.password);
 
     if (!isCurrentPasswordValid) {
       return res.status(401).json({
@@ -204,8 +194,7 @@ const changePassword = async (req, res) => {
     }
 
     // Actualizar contraseña
-    admin.password = newPassword;
-    await admin.save();
+    await AdminUser.updatePassword(adminId, newPassword);
 
     res.status(200).json({
       success: true,
@@ -222,11 +211,11 @@ const changePassword = async (req, res) => {
 };
 
 // Obtener perfil del admin
-const getProfile = async (req, res) => {
+exports.getProfile = async (req, res) => {
   try {
     const adminId = req.admin.id;
 
-    const admin = await AdminUser.findById(adminId).select('-password');
+    const admin = await AdminUser.findById(adminId);
 
     if (!admin) {
       return res.status(404).json({
@@ -238,12 +227,9 @@ const getProfile = async (req, res) => {
     res.status(200).json({
       success: true,
       admin: {
-        id: admin._id,
-        name: admin.name,
+        id: admin.id,
         email: admin.email,
-        role: admin.role,
-        lastLogin: admin.lastLogin,
-        createdAt: admin.createdAt
+        createdAt: admin.created_at
       }
     });
 
@@ -257,22 +243,23 @@ const getProfile = async (req, res) => {
 };
 
 // Actualizar perfil del admin
-const updateProfile = async (req, res) => {
+exports.updateProfile = async (req, res) => {
   try {
     const adminId = req.admin.id;
-    const { name, email } = req.body;
+    const { email } = req.body;
 
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (email) updateData.email = email.toLowerCase();
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'El email es requerido'
+      });
+    }
 
-    const admin = await AdminUser.findByIdAndUpdate(
-      adminId,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
+    const db = require('../config/database');
+    const query = 'UPDATE admin_users SET email = $1 WHERE id = $2 RETURNING id, email, created_at';
+    const result = await db.query(query, [email.toLowerCase(), adminId]);
 
-    if (!admin) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Administrador no encontrado'
@@ -283,16 +270,14 @@ const updateProfile = async (req, res) => {
       success: true,
       message: 'Perfil actualizado exitosamente',
       admin: {
-        id: admin._id,
-        name: admin.name,
-        email: admin.email,
-        role: admin.role,
-        lastLogin: admin.lastLogin
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        createdAt: result.rows[0].created_at
       }
     });
 
   } catch (error) {
-    if (error.code === 11000) {
+    if (error.code === '23505') { // Código de violación de restricción única en PostgreSQL
       return res.status(400).json({
         success: false,
         message: 'El email ya está en uso'
@@ -305,13 +290,4 @@ const updateProfile = async (req, res) => {
       message: 'Error interno del servidor'
     });
   }
-};
-
-module.exports = {
-  login,
-  verifyToken,
-  logout,
-  changePassword,
-  getProfile,
-  updateProfile
 };

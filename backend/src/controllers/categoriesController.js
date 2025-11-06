@@ -3,16 +3,7 @@ const Category = require('../models/Category');
 // Obtener todas las categorías (público)
 const getCategories = async (req, res) => {
   try {
-    const { hierarchy = false } = req.query;
-
-    let categories;
-    if (hierarchy === 'true') {
-      categories = await Category.getHierarchy();
-    } else {
-      categories = await Category.find({ isActive: true })
-        .sort({ sortOrder: 1, name: 1 })
-        .select('-__v');
-    }
+    const categories = await Category.getAll();
 
     res.status(200).json({
       success: true,
@@ -33,11 +24,37 @@ const getCategoryById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const category = await Category.findById(id)
-      .populate('subcategories')
-      .select('-__v');
+    const category = await Category.getById(id);
 
-    if (!category || !category.isActive) {
+    if (!category || !category.is_active) {
+      return res.status(404).json({
+        success: false,
+        message: 'Categoría no encontrada'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: category
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo categoría:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Obtener categoría por slug (público)
+const getCategoryBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const category = await Category.getBySlug(slug);
+
+    if (!category) {
       return res.status(404).json({
         success: false,
         message: 'Categoría no encontrada'
@@ -77,16 +94,14 @@ const getMainCategories = async (req, res) => {
   }
 };
 
-// Obtener subcategorías (público)
+// Obtener subcategorías (público) - Por ahora devuelve array vacío ya que no hay jerarquía
 const getSubcategories = async (req, res) => {
   try {
-    const { parentId } = req.params;
-
-    const subcategories = await Category.getSubcategories(parentId);
-
+    // Como la estructura actual no tiene jerarquía de categorías,
+    // devolvemos un array vacío
     res.status(200).json({
       success: true,
-      data: subcategories
+      data: []
     });
 
   } catch (error) {
@@ -105,20 +120,7 @@ const createCategory = async (req, res) => {
   try {
     const categoryData = req.body;
 
-    // Verificar que el nombre sea único
-    const existingCategory = await Category.findOne({ 
-      name: categoryData.name,
-      isActive: true 
-    });
-    if (existingCategory) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ya existe una categoría con ese nombre'
-      });
-    }
-
-    const category = new Category(categoryData);
-    await category.save();
+    const category = await Category.create(categoryData);
 
     res.status(201).json({
       success: true,
@@ -127,23 +129,15 @@ const createCategory = async (req, res) => {
     });
 
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Datos inválidos',
-        errors
-      });
-    }
-
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ya existe una categoría con ese slug'
-      });
-    }
-
     console.error('Error creando categoría:', error);
+    
+    if (error.message.includes('slug') || error.message.includes('requeridos')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -157,26 +151,7 @@ const updateCategory = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    // Si se está actualizando el nombre, verificar que sea único
-    if (updateData.name) {
-      const existingCategory = await Category.findOne({ 
-        name: updateData.name,
-        _id: { $ne: id },
-        isActive: true 
-      });
-      if (existingCategory) {
-        return res.status(400).json({
-          success: false,
-          message: 'Ya existe una categoría con ese nombre'
-        });
-      }
-    }
-
-    const category = await Category.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    const category = await Category.update(id, updateData);
 
     if (!category) {
       return res.status(404).json({
@@ -192,23 +167,15 @@ const updateCategory = async (req, res) => {
     });
 
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Datos inválidos',
-        errors
-      });
-    }
-
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ya existe una categoría con ese slug'
-      });
-    }
-
     console.error('Error actualizando categoría:', error);
+    
+    if (error.message.includes('slug') || error.message.includes('no encontrada')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -223,26 +190,16 @@ const deleteCategory = async (req, res) => {
 
     // Verificar si hay productos asociados
     const Product = require('../models/Product');
-    const productsCount = await Product.countDocuments({ category: id });
-
-    if (productsCount > 0) {
+    const products = await Product.getByCategory(id, 1);
+    
+    if (products.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `No se puede eliminar la categoría porque tiene ${productsCount} productos asociados`
+        message: 'No se puede eliminar la categoría porque tiene productos asociados'
       });
     }
 
-    // Verificar si hay subcategorías
-    const subcategoriesCount = await Category.countDocuments({ parent: id });
-
-    if (subcategoriesCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `No se puede eliminar la categoría porque tiene ${subcategoriesCount} subcategorías`
-      });
-    }
-
-    const category = await Category.findByIdAndDelete(id);
+    const category = await Category.delete(id);
 
     if (!category) {
       return res.status(404).json({
@@ -272,34 +229,37 @@ const getAllCategories = async (req, res) => {
       page = 1, 
       limit = 20, 
       search,
-      status,
-      sort = 'name',
-      order = 'asc'
+      status
     } = req.query;
 
-    const query = {};
-
-    // Filtros
+    let categories;
+    
     if (search) {
-      query.name = new RegExp(search, 'i');
+      // Búsqueda simple por nombre
+      const db = require('../config/database');
+      const query = `
+        SELECT 
+          c.*,
+          COUNT(p.id) as product_count
+        FROM categories c
+        LEFT JOIN products p ON c.id = p.category_id AND p.is_active = true
+        WHERE c.name ILIKE $1 ${status ? 'AND c.is_active = $2' : ''}
+        GROUP BY c.id
+        ORDER BY c.name ASC
+        LIMIT $${status ? 3 : 2} OFFSET $${status ? 4 : 3}
+      `;
+      const params = [`%${search}%`];
+      if (status) params.push(status === 'active');
+      params.push(parseInt(limit));
+      params.push((parseInt(page) - 1) * parseInt(limit));
+      
+      const result = await db.query(query, params);
+      categories = result.rows;
+    } else {
+      categories = await Category.getAll();
     }
-    if (status) query.isActive = status === 'active';
 
-    // Paginación
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Ordenamiento
-    const sortObj = {};
-    sortObj[sort] = order === 'asc' ? 1 : -1;
-
-    const categories = await Category.find(query)
-      .populate('parent', 'name')
-      .sort(sortObj)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .select('-__v');
-
-    const total = await Category.countDocuments(query);
+    const total = await Category.count(status !== 'inactive');
 
     res.status(200).json({
       success: true,
@@ -324,44 +284,34 @@ const getAllCategories = async (req, res) => {
 // Obtener estadísticas de categorías (admin)
 const getCategoryStats = async (req, res) => {
   try {
-    const totalCategories = await Category.countDocuments();
-    const activeCategories = await Category.countDocuments({ isActive: true });
-    const mainCategories = await Category.countDocuments({ parent: null });
-    const subcategories = await Category.countDocuments({ parent: { $ne: null } });
+    const db = require('../config/database');
+
+    const totalResult = await db.query('SELECT COUNT(*) as total FROM categories');
+    const totalCategories = parseInt(totalResult.rows[0].total);
+
+    const activeResult = await db.query('SELECT COUNT(*) as total FROM categories WHERE is_active = true');
+    const activeCategories = parseInt(activeResult.rows[0].total);
 
     // Categorías con más productos
-    const Product = require('../models/Product');
-    const categoriesWithProducts = await Category.aggregate([
-      {
-        $lookup: {
-          from: 'products',
-          localField: '_id',
-          foreignField: 'category',
-          as: 'products'
-        }
-      },
-      {
-        $project: {
-          name: 1,
-          productCount: { $size: '$products' }
-        }
-      },
-      {
-        $sort: { productCount: -1 }
-      },
-      {
-        $limit: 5
-      }
-    ]);
+    const topCategoriesQuery = `
+      SELECT 
+        c.id,
+        c.name,
+        COUNT(p.id) as product_count
+      FROM categories c
+      LEFT JOIN products p ON c.id = p.category_id AND p.is_active = true
+      GROUP BY c.id, c.name
+      ORDER BY product_count DESC
+      LIMIT 5
+    `;
+    const topCategoriesResult = await db.query(topCategoriesQuery);
 
     res.status(200).json({
       success: true,
       data: {
         total: totalCategories,
         active: activeCategories,
-        main: mainCategories,
-        subcategories: subcategories,
-        topCategories: categoriesWithProducts
+        topCategories: topCategoriesResult.rows
       }
     });
 
@@ -378,6 +328,7 @@ module.exports = {
   // Rutas públicas
   getCategories,
   getCategoryById,
+  getCategoryBySlug,
   getMainCategories,
   getSubcategories,
   

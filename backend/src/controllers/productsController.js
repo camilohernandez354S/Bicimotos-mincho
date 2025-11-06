@@ -7,52 +7,33 @@ const getProducts = async (req, res) => {
     const { 
       page = 1, 
       limit = 12, 
-      category, 
+      category_id, 
       brand, 
-      minPrice, 
-      maxPrice, 
+      min_price, 
+      max_price, 
       search,
-      sort = 'createdAt',
-      order = 'desc'
+      sort = 'created_at',
+      order = 'desc',
+      in_stock
     } = req.query;
 
-    const query = { isActive: true };
+    const filters = {
+      category_id: category_id ? parseInt(category_id) : null,
+      brand: brand || null,
+      min_price: min_price ? parseFloat(min_price) : null,
+      max_price: max_price ? parseFloat(max_price) : null,
+      in_stock: in_stock === 'true',
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit)
+    };
 
-    // Filtros
-    if (category) query.category = category;
-    if (brand) query.brand = new RegExp(brand, 'i');
-    if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice) query.price.$gte = parseFloat(minPrice);
-      if (maxPrice) query.price.$lte = parseFloat(maxPrice);
-    }
+    // Buscar productos
+    const products = search 
+      ? await Product.searchProducts(search, filters)
+      : await Product.getAll(filters);
 
-    // Búsqueda por texto
-    if (search) {
-      query.$text = { $search: search };
-    }
-
-    // Paginación
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Ordenamiento
-    const sortObj = {};
-    if (sort === 'price') {
-      sortObj.price = order === 'asc' ? 1 : -1;
-    } else if (sort === 'name') {
-      sortObj.name = order === 'asc' ? 1 : -1;
-    } else {
-      sortObj[sort] = order === 'asc' ? 1 : -1;
-    }
-
-    const products = await Product.find(query)
-      .populate('category', 'name slug')
-      .sort(sortObj)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .select('-__v');
-
-    const total = await Product.countDocuments(query);
+    // Contar total
+    const total = await Product.count(filters);
 
     res.status(200).json({
       success: true,
@@ -79,11 +60,9 @@ const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const product = await Product.findById(id)
-      .populate('category', 'name slug')
-      .select('-__v');
+    const product = await Product.getById(id);
 
-    if (!product || !product.isActive) {
+    if (!product || !product.is_active) {
       return res.status(404).json({
         success: false,
         message: 'Producto no encontrado'
@@ -91,11 +70,14 @@ const getProductById = async (req, res) => {
     }
 
     // Incrementar vistas
-    await product.incrementViews();
+    await Product.incrementViews(id);
+
+    // Actualizar producto con las vistas incrementadas
+    const updatedProduct = await Product.getById(id);
 
     res.status(200).json({
       success: true,
-      data: product
+      data: updatedProduct
     });
 
   } catch (error) {
@@ -112,14 +94,7 @@ const getFeaturedProducts = async (req, res) => {
   try {
     const { limit = 8 } = req.query;
 
-    const products = await Product.find({ 
-      isActive: true, 
-      isFeatured: true 
-    })
-      .populate('category', 'name slug')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .select('-__v');
+    const products = await Product.getFeatured(parseInt(limit));
 
     res.status(200).json({
       success: true,
@@ -141,7 +116,7 @@ const getRelatedProducts = async (req, res) => {
     const { id } = req.params;
     const { limit = 4 } = req.query;
 
-    const product = await Product.findById(id);
+    const product = await Product.getById(id);
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -149,18 +124,17 @@ const getRelatedProducts = async (req, res) => {
       });
     }
 
-    const relatedProducts = await Product.find({
-      _id: { $ne: id },
-      category: product.category,
-      isActive: true
-    })
-      .populate('category', 'name slug')
-      .limit(parseInt(limit))
-      .select('-__v');
+    const relatedProducts = await Product.getByCategory(
+      product.category_id,
+      parseInt(limit) + 1 // +1 para excluir el producto actual
+    );
+
+    // Filtrar el producto actual
+    const filtered = relatedProducts.filter(p => p.id !== parseInt(id)).slice(0, parseInt(limit));
 
     res.status(200).json({
       success: true,
-      data: relatedProducts
+      data: filtered
     });
 
   } catch (error) {
@@ -179,19 +153,27 @@ const createProduct = async (req, res) => {
   try {
     const productData = req.body;
 
-    // Verificar que el SKU sea único
-    const existingProduct = await Product.findOne({ sku: productData.sku });
-    if (existingProduct) {
-      return res.status(400).json({
-        success: false,
-        message: 'El SKU ya existe'
-      });
-    }
+    // Mapear campos de camelCase a snake_case
+    const mappedData = {
+      name: productData.name,
+      description: productData.description,
+      price: productData.price,
+      original_price: productData.originalPrice || productData.original_price,
+      stock: productData.stock || 0,
+      sku: productData.sku,
+      brand: productData.brand,
+      model: productData.model,
+      category_id: productData.categoryId || productData.category_id,
+      image_url: productData.imageUrl || productData.image_url,
+      images: productData.images,
+      specifications: productData.specifications,
+      features: productData.features,
+      tags: productData.tags,
+      is_active: productData.isActive !== undefined ? productData.isActive : true,
+      is_featured: productData.isFeatured !== undefined ? productData.isFeatured : false
+    };
 
-    const product = new Product(productData);
-    await product.save();
-
-    await product.populate('category', 'name slug');
+    const product = await Product.create(mappedData);
 
     res.status(201).json({
       success: true,
@@ -200,16 +182,15 @@ const createProduct = async (req, res) => {
     });
 
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
+    console.error('Error creando producto:', error);
+    
+    if (error.message.includes('SKU') || error.message.includes('requeridos')) {
       return res.status(400).json({
         success: false,
-        message: 'Datos inválidos',
-        errors
+        message: error.message
       });
     }
 
-    console.error('Error creando producto:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -223,25 +204,24 @@ const updateProduct = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    // Si se está actualizando el SKU, verificar que sea único
-    if (updateData.sku) {
-      const existingProduct = await Product.findOne({ 
-        sku: updateData.sku, 
-        _id: { $ne: id } 
-      });
-      if (existingProduct) {
-        return res.status(400).json({
-          success: false,
-          message: 'El SKU ya existe'
-        });
+    // Mapear campos de camelCase a snake_case
+    const mappedData = {};
+    const fieldMap = {
+      originalPrice: 'original_price',
+      categoryId: 'category_id',
+      imageUrl: 'image_url',
+      isActive: 'is_active',
+      isFeatured: 'is_featured'
+    };
+
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined) {
+        const dbField = fieldMap[key] || key;
+        mappedData[dbField] = value;
       }
     }
 
-    const product = await Product.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('category', 'name slug');
+    const product = await Product.update(id, mappedData);
 
     if (!product) {
       return res.status(404).json({
@@ -257,16 +237,15 @@ const updateProduct = async (req, res) => {
     });
 
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
+    console.error('Error actualizando producto:', error);
+    
+    if (error.message.includes('SKU') || error.message.includes('no encontrado')) {
       return res.status(400).json({
         success: false,
-        message: 'Datos inválidos',
-        errors
+        message: error.message
       });
     }
 
-    console.error('Error actualizando producto:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -279,7 +258,7 @@ const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const product = await Product.findByIdAndDelete(id);
+    const product = await Product.delete(id);
 
     if (!product) {
       return res.status(404).json({
@@ -309,36 +288,27 @@ const getAllProducts = async (req, res) => {
       page = 1, 
       limit = 20, 
       search,
-      category,
-      status,
-      sort = 'createdAt',
-      order = 'desc'
+      category_id,
+      status
     } = req.query;
 
-    const query = {};
+    const filters = {
+      category_id: category_id ? parseInt(category_id) : null,
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit)
+    };
 
-    // Filtros
-    if (search) {
-      query.$text = { $search: search };
+    if (status === 'active') {
+      filters.is_active = true;
+    } else if (status === 'inactive') {
+      filters.is_active = false;
     }
-    if (category) query.category = category;
-    if (status) query.isActive = status === 'active';
 
-    // Paginación
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const products = search 
+      ? await Product.searchProducts(search, filters)
+      : await Product.getAll(filters);
 
-    // Ordenamiento
-    const sortObj = {};
-    sortObj[sort] = order === 'asc' ? 1 : -1;
-
-    const products = await Product.find(query)
-      .populate('category', 'name slug')
-      .sort(sortObj)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .select('-__v');
-
-    const total = await Product.countDocuments(query);
+    const total = await Product.count(filters);
 
     res.status(200).json({
       success: true,
@@ -363,22 +333,26 @@ const getAllProducts = async (req, res) => {
 // Obtener estadísticas de productos (admin)
 const getProductStats = async (req, res) => {
   try {
-    const totalProducts = await Product.countDocuments();
-    const activeProducts = await Product.countDocuments({ isActive: true });
-    const featuredProducts = await Product.countDocuments({ isFeatured: true });
-    const lowStockProducts = await Product.countDocuments({ stock: { $lte: 5 } });
+    const db = require('../config/database');
+
+    // Contar productos
+    const totalResult = await db.query('SELECT COUNT(*) as total FROM products');
+    const totalProducts = parseInt(totalResult.rows[0].total);
+
+    const activeResult = await db.query('SELECT COUNT(*) as total FROM products WHERE is_active = true');
+    const activeProducts = parseInt(activeResult.rows[0].total);
+
+    const featuredResult = await db.query('SELECT COUNT(*) as total FROM products WHERE is_featured = true');
+    const featuredProducts = parseInt(featuredResult.rows[0].total);
+
+    const lowStockResult = await db.query('SELECT COUNT(*) as total FROM products WHERE stock <= 5 AND is_active = true');
+    const lowStockProducts = parseInt(lowStockResult.rows[0].total);
 
     // Productos más vendidos
-    const topSellingProducts = await Product.find()
-      .sort({ sales: -1 })
-      .limit(5)
-      .select('name sales');
+    const topSelling = await Product.getTopSelling(5);
 
     // Productos más vistos
-    const mostViewedProducts = await Product.find()
-      .sort({ views: -1 })
-      .limit(5)
-      .select('name views');
+    const mostViewed = await Product.getMostViewed(5);
 
     res.status(200).json({
       success: true,
@@ -387,8 +361,8 @@ const getProductStats = async (req, res) => {
         active: activeProducts,
         featured: featuredProducts,
         lowStock: lowStockProducts,
-        topSelling: topSellingProducts,
-        mostViewed: mostViewedProducts
+        topSelling: topSelling.map(p => ({ name: p.name, sales: p.sales })),
+        mostViewed: mostViewed.map(p => ({ name: p.name, views: p.views }))
       }
     });
 

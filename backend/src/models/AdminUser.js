@@ -1,135 +1,94 @@
-const mongoose = require('mongoose');
+const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 
-const adminUserSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'El nombre es requerido'],
-    trim: true,
-    maxlength: [50, 'El nombre no puede exceder 50 caracteres']
-  },
-  email: {
-    type: String,
-    required: [true, 'El email es requerido'],
-    unique: true,
-    lowercase: true,
-    trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Email inválido']
-  },
-  password: {
-    type: String,
-    required: [true, 'La contraseña es requerida'],
-    minlength: [6, 'La contraseña debe tener al menos 6 caracteres']
-  },
-  role: {
-    type: String,
-    enum: ['admin', 'super_admin'],
-    default: 'admin'
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  lastLogin: {
-    type: Date,
-    default: null
-  },
-  loginAttempts: {
-    type: Number,
-    default: 0
-  },
-  lockUntil: {
-    type: Date,
-    default: null
-  }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
-
-// Índices
-adminUserSchema.index({ email: 1 });
-adminUserSchema.index({ isActive: 1 });
-
-// Virtual para verificar si la cuenta está bloqueada
-adminUserSchema.virtual('isLocked').get(function() {
-  return !!(this.lockUntil && this.lockUntil > Date.now());
-});
-
-// Middleware para encriptar contraseña antes de guardar
-adminUserSchema.pre('save', async function(next) {
-  // Solo encriptar si la contraseña ha sido modificada
-  if (!this.isModified('password')) return next();
-  
-  try {
-    // Encriptar contraseña con bcrypt
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Método para comparar contraseñas
-adminUserSchema.methods.comparePassword = async function(candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw error;
-  }
-};
-
-// Método para incrementar intentos de login
-adminUserSchema.methods.incLoginAttempts = function() {
-  // Si tenemos un lockUntil anterior y ya expiró, reiniciar
-  if (this.lockUntil && this.lockUntil < Date.now()) {
-    return this.updateOne({
-      $unset: { lockUntil: 1 },
-      $set: { loginAttempts: 1 }
-    });
-  }
-  
-  const updates = { $inc: { loginAttempts: 1 } };
-  
-  // Bloquear cuenta después de 5 intentos fallidos por 2 horas
-  if (this.loginAttempts + 1 >= 5 && !this.isLocked) {
-    updates.$set = { lockUntil: Date.now() + 2 * 60 * 60 * 1000 }; // 2 horas
-  }
-  
-  return this.updateOne(updates);
-};
-
-// Método para resetear intentos de login
-adminUserSchema.methods.resetLoginAttempts = function() {
-  return this.updateOne({
-    $unset: { loginAttempts: 1, lockUntil: 1 },
-    $set: { lastLogin: new Date() }
-  });
-};
-
-// Método estático para crear admin por defecto
-adminUserSchema.statics.createDefaultAdmin = async function() {
-  try {
-    const existingAdmin = await this.findOne({ email: 'admin@bicimotosmincho.com' });
-    
-    if (!existingAdmin) {
-      const defaultAdmin = new this({
-        name: 'Administrador',
-        email: 'admin@bicimotosmincho.com',
-        password: 'BicimotosMincho2024!', // Contraseña segura por defecto
-        role: 'super_admin'
-      });
-      
-      await defaultAdmin.save();
-      console.log('✅ Usuario administrador por defecto creado');
-      console.log('📧 Email: admin@bicimotosmincho.com');
-      console.log('🔑 Contraseña: BicimotosMincho2024!');
+class AdminUser {
+  static async findByEmail(email) {
+    try {
+      const query = 'SELECT * FROM admin_users WHERE email = $1 LIMIT 1';
+      const result = await db.query(query, [email.toLowerCase()]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error buscando admin por email:', error);
+      throw error;
     }
-  } catch (error) {
-    console.error('Error creando admin por defecto:', error);
   }
-};
 
-module.exports = mongoose.model('AdminUser', adminUserSchema);
+  static async findById(id) {
+    try {
+      const query = 'SELECT * FROM admin_users WHERE id = $1 LIMIT 1';
+      const result = await db.query(query, [id]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error buscando admin por ID:', error);
+      throw error;
+    }
+  }
+
+  static async createDefaultAdmin() {
+    try {
+      const defaultEmail = 'admin@bicimotosmincho.com';
+      const defaultPassword = 'BicimotosMincho2024!';
+
+      const check = await this.findByEmail(defaultEmail);
+      
+      if (!check) {
+        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+        
+        const query = 'INSERT INTO admin_users (email, password) VALUES ($1, $2) RETURNING id, email';
+        const result = await db.query(query, [defaultEmail, hashedPassword]);
+        
+        console.log('✅ Admin por defecto creado: admin@bicimotosmincho.com / BicimotosMincho2024!');
+        return result.rows[0];
+      } else {
+        console.log('ℹ️  Admin por defecto ya existe');
+        // Si el admin ya existe pero tiene la contraseña antigua, actualizarla
+        const testPassword = await this.validatePassword('BicimotosMincho2024!', check.password);
+        if (!testPassword) {
+          // La contraseña no coincide, actualizar a la nueva
+          const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+          await db.query('UPDATE admin_users SET password = $1 WHERE id = $2', [hashedPassword, check.id]);
+          console.log('✅ Contraseña del admin por defecto actualizada a: BicimotosMincho2024!');
+        }
+        return check;
+      }
+    } catch (error) {
+      console.error('Error creando admin por defecto:', error);
+      throw error;
+    }
+  }
+
+  static async validatePassword(password, hash) {
+    try {
+      return await bcrypt.compare(password, hash);
+    } catch (error) {
+      console.error('Error validando contraseña:', error);
+      return false;
+    }
+  }
+
+  static async create(email, password) {
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const query = 'INSERT INTO admin_users (email, password) VALUES ($1, $2) RETURNING id, email, created_at';
+      const result = await db.query(query, [email.toLowerCase(), hashedPassword]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error creando admin:', error);
+      throw error;
+    }
+  }
+
+  static async updatePassword(id, newPassword) {
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      const query = 'UPDATE admin_users SET password = $1 WHERE id = $2 RETURNING id, email';
+      const result = await db.query(query, [hashedPassword, id]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error actualizando contraseña:', error);
+      throw error;
+    }
+  }
+}
+
+module.exports = AdminUser;

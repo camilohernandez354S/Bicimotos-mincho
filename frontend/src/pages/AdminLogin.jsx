@@ -27,28 +27,27 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      // Verificar credenciales localmente
-      if (formData.email === 'admin@bicimotosmincho.com' && formData.password === 'BicimotosMincho2024!') {
-        // Simular login exitoso
-        const mockAdmin = {
-          id: 1,
-          name: 'Administrador',
-          email: 'admin@bicimotosmincho.com',
-          role: 'super_admin'
-        };
-        
-        // Guardar datos en localStorage
-        localStorage.setItem('admin_token', 'mock-jwt-token-12345');
-        localStorage.setItem('admin_data', JSON.stringify(mockAdmin));
-        
-        toast.success('Login exitoso');
+      // Validar campos
+      if (!formData.email || !formData.password) {
+        toast.error('Por favor completa todos los campos');
+        setLoading(false);
+        return;
+      }
+
+      // Llamar al servicio de autenticación
+      const response = await AdminAuthService.login(formData.email, formData.password);
+      
+      if (response.success) {
+        toast.success(`Bienvenido, ${response.admin.name || 'Administrador'}`);
         navigate('/admin/dashboard');
       } else {
-        toast.error('Credenciales inválidas');
+        toast.error(response.message || 'Error en el login');
       }
       
     } catch (error) {
-      toast.error('Error en el login');
+      console.error('Error en login:', error);
+      const errorMessage = error.message || 'Error al iniciar sesión. Verifica tus credenciales.';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

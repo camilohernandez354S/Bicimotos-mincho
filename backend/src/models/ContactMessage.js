@@ -1,199 +1,155 @@
-const mongoose = require('mongoose');
+const db = require('../config/database');
 
-const contactMessageSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'El nombre es requerido'],
-    trim: true,
-    maxlength: [100, 'El nombre no puede exceder 100 caracteres']
-  },
-  email: {
-    type: String,
-    required: [true, 'El email es requerido'],
-    lowercase: true,
-    trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Email inválido']
-  },
-  phone: {
-    type: String,
-    trim: true,
-    maxlength: [20, 'El teléfono no puede exceder 20 caracteres']
-  },
-  subject: {
-    type: String,
-    required: [true, 'El asunto es requerido'],
-    trim: true,
-    maxlength: [200, 'El asunto no puede exceder 200 caracteres']
-  },
-  message: {
-    type: String,
-    required: [true, 'El mensaje es requerido'],
-    trim: true,
-    maxlength: [2000, 'El mensaje no puede exceder 2000 caracteres']
-  },
-  status: {
-    type: String,
-    enum: ['new', 'read', 'replied', 'closed'],
-    default: 'new'
-  },
-  priority: {
-    type: String,
-    enum: ['low', 'medium', 'high', 'urgent'],
-    default: 'medium'
-  },
-  source: {
-    type: String,
-    enum: ['website', 'email', 'phone', 'social', 'other'],
-    default: 'website'
-  },
-  ipAddress: {
-    type: String,
-    default: null
-  },
-  userAgent: {
-    type: String,
-    default: null
-  },
-  assignedTo: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'AdminUser',
-    default: null
-  },
-  reply: {
-    message: String,
-    repliedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'AdminUser'
-    },
-    repliedAt: Date
-  },
-  tags: [String],
-  notes: [{
-    note: String,
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'AdminUser'
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now
+class ContactMessage {
+  // 🔹 Crear mensaje de contacto
+  static async create(data) {
+    const {
+      name,
+      email,
+      phone,
+      subject,
+      message,
+      ip_address,
+      user_agent
+    } = data;
+
+    // Validaciones
+    if (!name || !email || !subject || !message) {
+      throw new Error('Nombre, email, asunto y mensaje son requeridos');
     }
-  }]
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
 
-// Índices
-contactMessageSchema.index({ email: 1 });
-contactMessageSchema.index({ status: 1 });
-contactMessageSchema.index({ priority: 1 });
-contactMessageSchema.index({ createdAt: -1 });
-contactMessageSchema.index({ assignedTo: 1 });
-
-// Virtual para calcular tiempo de respuesta
-contactMessageSchema.virtual('responseTime').get(function() {
-  if (this.reply && this.reply.repliedAt) {
-    return this.reply.repliedAt - this.createdAt;
-  }
-  return null;
-});
-
-// Virtual para verificar si es urgente
-contactMessageSchema.virtual('isUrgent').get(function() {
-  const hoursSinceCreated = (Date.now() - this.createdAt) / (1000 * 60 * 60);
-  return this.priority === 'urgent' || (this.status === 'new' && hoursSinceCreated > 24);
-});
-
-// Método para marcar como leído
-contactMessageSchema.methods.markAsRead = function(adminId) {
-  if (this.status === 'new') {
-    this.status = 'read';
-    this.assignedTo = adminId;
-    return this.save();
-  }
-  return Promise.resolve(this);
-};
-
-// Método para responder mensaje
-contactMessageSchema.methods.replyTo = function(replyMessage, adminId) {
-  this.reply = {
-    message: replyMessage,
-    repliedBy: adminId,
-    repliedAt: new Date()
-  };
-  this.status = 'replied';
-  return this.save();
-};
-
-// Método para cerrar mensaje
-contactMessageSchema.methods.close = function(adminId) {
-  this.status = 'closed';
-  this.assignedTo = adminId;
-  return this.save();
-};
-
-// Método para agregar nota
-contactMessageSchema.methods.addNote = function(note, adminId) {
-  this.notes.push({
-    note,
-    createdBy: adminId,
-    createdAt: new Date()
-  });
-  return this.save();
-};
-
-// Método estático para obtener estadísticas
-contactMessageSchema.statics.getStats = function() {
-  return this.aggregate([
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 }
-      }
+    // Validar formato de email básico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new Error('Email inválido');
     }
-  ]);
-};
 
-// Método estático para obtener mensajes por prioridad
-contactMessageSchema.statics.getByPriority = function(priority) {
-  return this.find({ priority, status: { $ne: 'closed' } })
-    .populate('assignedTo', 'name email')
-    .sort({ createdAt: -1 });
-};
+    const query = `
+      INSERT INTO contact_messages (
+        name, email, phone, subject, message, 
+        ip_address, user_agent, status, priority
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
 
-// Método estático para buscar mensajes
-contactMessageSchema.statics.searchMessages = function(query, filters = {}) {
-  const searchQuery = {};
-  
-  if (query) {
-    searchQuery.$or = [
-      { name: new RegExp(query, 'i') },
-      { email: new RegExp(query, 'i') },
-      { subject: new RegExp(query, 'i') },
-      { message: new RegExp(query, 'i') }
+    const values = [
+      name.trim(),
+      email.toLowerCase().trim(),
+      phone ? phone.trim() : null,
+      subject.trim(),
+      message.trim(),
+      ip_address || null,
+      user_agent || null,
+      'new',
+      'medium'
     ];
-  }
-  
-  if (filters.status) {
-    searchQuery.status = filters.status;
-  }
-  
-  if (filters.priority) {
-    searchQuery.priority = filters.priority;
-  }
-  
-  if (filters.dateFrom || filters.dateTo) {
-    searchQuery.createdAt = {};
-    if (filters.dateFrom) searchQuery.createdAt.$gte = new Date(filters.dateFrom);
-    if (filters.dateTo) searchQuery.createdAt.$lte = new Date(filters.dateTo);
-  }
-  
-  return this.find(searchQuery)
-    .populate('assignedTo', 'name email')
-    .populate('reply.repliedBy', 'name email')
-    .sort({ createdAt: -1 });
-};
 
-module.exports = mongoose.model('ContactMessage', contactMessageSchema);
+    const { rows } = await db.query(query, values);
+    return rows[0];
+  }
+
+  // 🔹 Obtener todos los mensajes
+  static async getAll(filters = {}) {
+    let query = `
+      SELECT * FROM contact_messages
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let idx = 1;
+
+    if (filters.status) {
+      query += ` AND status = $${idx++}`;
+      params.push(filters.status);
+    }
+
+    if (filters.priority) {
+      query += ` AND priority = $${idx++}`;
+      params.push(filters.priority);
+    }
+
+    query += ` ORDER BY created_at DESC`;
+
+    if (filters.limit) {
+      query += ` LIMIT $${idx++}`;
+      params.push(filters.limit);
+    }
+
+    if (filters.offset) {
+      query += ` OFFSET $${idx++}`;
+      params.push(filters.offset);
+    }
+
+    const { rows } = await db.query(query, params);
+    return rows;
+  }
+
+  // 🔹 Obtener mensaje por ID
+  static async getById(id) {
+    const query = 'SELECT * FROM contact_messages WHERE id = $1';
+    const { rows } = await db.query(query, [id]);
+    return rows[0];
+  }
+
+  // 🔹 Marcar como leído
+  static async markAsRead(id, adminId = null) {
+    const query = `
+      UPDATE contact_messages
+      SET status = 'read',
+          assigned_to = $2,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+    const { rows } = await db.query(query, [id, adminId]);
+    return rows[0];
+  }
+
+  // 🔹 Responder mensaje
+  static async reply(id, replyMessage, adminId) {
+    const query = `
+      UPDATE contact_messages
+      SET status = 'replied',
+          reply_message = $2,
+          replied_by = $3,
+          replied_at = NOW(),
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+    const { rows } = await db.query(query, [id, replyMessage, adminId]);
+    return rows[0];
+  }
+
+  // 🔹 Cerrar mensaje
+  static async close(id, adminId = null) {
+    const query = `
+      UPDATE contact_messages
+      SET status = 'closed',
+          assigned_to = $2,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+    const { rows } = await db.query(query, [id, adminId]);
+    return rows[0];
+  }
+
+  // 🔹 Contar mensajes
+  static async count(filters = {}) {
+    let query = 'SELECT COUNT(*) as total FROM contact_messages WHERE 1=1';
+    const params = [];
+    let idx = 1;
+
+    if (filters.status) {
+      query += ` AND status = $${idx++}`;
+      params.push(filters.status);
+    }
+
+    const { rows } = await db.query(query, params);
+    return parseInt(rows[0].total);
+  }
+}
+
+module.exports = ContactMessage;
