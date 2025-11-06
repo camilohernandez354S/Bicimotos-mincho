@@ -19,9 +19,10 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
+      imgSrc: ["'self'", "data:", "https:", "http://localhost:5000", "http://localhost:3000", "blob:"],
     },
   },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
 app.use(compression());
@@ -39,12 +40,49 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Middleware
+// Middleware CORS - configurado para permitir imágenes desde el frontend
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Content-Length']
+}));
+
+// Servir archivos estáticos (imágenes) - ANTES de las rutas para evitar conflictos
+const path = require('path');
+const fs = require('fs');
+const uploadsPath = path.resolve(__dirname, '../uploads');
+console.log('📁 Ruta de uploads:', uploadsPath);
+console.log('📁 Existe uploads:', fs.existsSync(uploadsPath));
+console.log('📁 Existe uploads/products:', fs.existsSync(path.join(uploadsPath, 'products')));
+
+// Middleware de logging para archivos estáticos
+app.use('/uploads', (req, res, next) => {
+  console.log('📥 Solicitud de archivo estático:', req.path);
+  next();
+});
+
+app.use('/uploads', express.static(uploadsPath, {
+  setHeaders: (res, filePath) => {
+    // Permitir CORS para imágenes
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.set('Access-Control-Allow-Origin', frontendUrl);
+    res.set('Access-Control-Allow-Credentials', 'true');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    // Establecer Content-Type correcto según la extensión
+    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+      res.set('Content-Type', 'image/jpeg');
+    } else if (filePath.endsWith('.png')) {
+      res.set('Content-Type', 'image/png');
+    } else if (filePath.endsWith('.webp')) {
+      res.set('Content-Type', 'image/webp');
+    }
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📤 Sirviendo archivo:', filePath);
+    }
+  }
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -80,10 +118,25 @@ const createTablesManually = async () => {
           id SERIAL PRIMARY KEY,
           email VARCHAR(255) UNIQUE NOT NULL,
           password VARCHAR(255) NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW()
+          name VARCHAR(255),
+          logo_path VARCHAR(255),
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
         );
       `);
       console.log('✅ Tabla admin_users creada/verificada');
+      
+      // Agregar columnas name y logo_path si no existen
+      try {
+        await db.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS name VARCHAR(255)');
+        await db.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS logo_path VARCHAR(255)');
+        await db.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+      } catch (alterError) {
+        // Las columnas ya existen, ignorar error
+        if (!alterError.message.includes('duplicate') && !alterError.message.includes('already exists')) {
+          console.warn('⚠️  Error agregando columnas a admin_users:', alterError.message);
+        }
+      }
     } catch (err) {
       if (!err.message.includes('already exists') && !err.message.includes('duplicate')) {
         console.warn('⚠️  admin_users:', err.message);
@@ -118,8 +171,8 @@ const createTablesManually = async () => {
           id SERIAL PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
           description TEXT NOT NULL,
-          price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
-          original_price NUMERIC(10,2) CHECK (original_price >= 0),
+          price NUMERIC(15,2) NOT NULL CHECK (price >= 0),
+          original_price NUMERIC(15,2) CHECK (original_price >= 0),
           stock INT DEFAULT 0 CHECK (stock >= 0),
           sku VARCHAR(100) UNIQUE NOT NULL,
           brand VARCHAR(100),
@@ -141,6 +194,21 @@ const createTablesManually = async () => {
         );
       `);
       console.log('✅ Tabla products creada/verificada');
+      
+      // Actualizar columnas de precio si ya existen con precisión menor
+      try {
+        await db.query(`
+          ALTER TABLE products 
+          ALTER COLUMN price TYPE NUMERIC(15,2),
+          ALTER COLUMN original_price TYPE NUMERIC(15,2);
+        `);
+        console.log('✅ Columnas de precio actualizadas a NUMERIC(15,2)');
+      } catch (err) {
+        // Ignorar si ya está actualizado o no existe la tabla
+        if (!err.message.includes('does not exist') && !err.message.includes('already')) {
+          // Solo mostrar si es un error real
+        }
+      }
     } catch (err) {
       if (!err.message.includes('already exists') && !err.message.includes('duplicate')) {
         console.warn('⚠️  products:', err.message);
@@ -294,15 +362,30 @@ const connectDB = async () => {
 // Inicializar base de datos
 connectDB();
 
+// Ya configurado arriba
+
 // Importar rutas
 const publicRoutes = require('./routes/public');
 const adminRoutes = require('./routes/admin');
+const adminProductsRoutes = require('./routes/adminProducts');
+const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
+const adminMessagesRoutes = require('./routes/adminMessagesRoutes');
+const adminOrdersRoutes = require('./routes/adminOrdersRoutes');
+const adminReportsRoutes = require('./routes/adminReportsRoutes');
+const adminConfigRoutes = require('./routes/adminConfigRoutes');
 
 // Rutas públicas
 app.use('/api', publicRoutes);
 
 // Rutas privadas (admin)
-app.use('/api/admin', adminRoutes);
+// IMPORTANTE: Las rutas más específicas deben ir ANTES de las generales
+app.use('/api/admin/dashboard', adminDashboardRoutes); // Más específica primero
+app.use('/api/admin/products', adminProductsRoutes);
+app.use('/api/admin/mensajes', adminMessagesRoutes);
+app.use('/api/admin/ordenes', adminOrdersRoutes);
+app.use('/api/admin/reportes', adminReportsRoutes);
+app.use('/api/admin/configuracion', adminConfigRoutes);
+app.use('/api/admin', adminRoutes); // General al final
 
 // Ruta de prueba
 app.get('/api/health', async (req, res) => {
@@ -413,6 +496,34 @@ app.listen(PORT, () => {
   console.log(`🔐 API admin: http://localhost:${PORT}/api/admin`);
   console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
   console.log(`📊 Entorno: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Listar rutas registradas después de un breve delay
+  setTimeout(() => {
+    console.log('\n📋 RUTAS ADMIN REGISTRADAS:');
+    console.log('  ✅ GET    /api/admin/dashboard');
+    console.log('  ✅ GET    /api/admin/products');
+    console.log('  ✅ POST   /api/admin/products');
+    console.log('  ✅ GET    /api/admin/products/:id');
+    console.log('  ✅ PUT    /api/admin/products/:id');
+    console.log('  ✅ DELETE /api/admin/products/:id');
+    console.log('  ✅ GET    /api/admin/mensajes');
+    console.log('  ✅ GET    /api/admin/mensajes/count/unread');
+    console.log('  ✅ GET    /api/admin/mensajes/:id');
+    console.log('  ✅ PATCH  /api/admin/mensajes/:id/read');
+    console.log('  ✅ DELETE /api/admin/mensajes/:id');
+    console.log('  ✅ GET    /api/admin/ordenes');
+    console.log('  ✅ GET    /api/admin/ordenes/count/pending');
+    console.log('  ✅ GET    /api/admin/ordenes/:id');
+    console.log('  ✅ PATCH  /api/admin/ordenes/:id/status');
+    console.log('  ✅ DELETE /api/admin/ordenes/:id');
+    console.log('  ✅ GET    /api/admin/reportes');
+    console.log('  ✅ GET    /api/admin/reportes/export/pdf');
+    console.log('  ✅ GET    /api/admin/configuracion');
+    console.log('  ✅ PUT    /api/admin/configuracion');
+    console.log('  ✅ PUT    /api/admin/configuracion/password');
+    console.log('  ✅ POST   /api/admin/configuracion/logo');
+    console.log('');
+  }, 1500);
 });
 
 module.exports = app;

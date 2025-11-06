@@ -279,6 +279,68 @@ class Product {
     return rows[0];
   }
 
+  // 🔹 Buscar productos (nombre, descripción, marca, categoría) - Admin (incluye inactivos)
+  static async searchProductsAdmin(queryString, filters = {}) {
+    let sql = `
+      SELECT 
+        p.*,
+        c.name as category_name,
+        c.slug as category_slug
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let idx = 1;
+
+    if (queryString) {
+      sql += ` AND (
+        p.name ILIKE $${idx} OR 
+        p.description ILIKE $${idx} OR 
+        p.brand ILIKE $${idx} OR 
+        p.sku ILIKE $${idx} OR
+        c.name ILIKE $${idx}
+      )`;
+      params.push(`%${queryString}%`);
+      idx++;
+    }
+
+    if (filters.category_id) {
+      sql += ` AND p.category_id = $${idx++}`;
+      params.push(filters.category_id);
+    }
+
+    if (filters.is_active !== undefined) {
+      sql += ` AND p.is_active = $${idx++}`;
+      params.push(filters.is_active);
+    }
+
+    if (filters.brand) {
+      sql += ` AND p.brand ILIKE $${idx++}`;
+      params.push(`%${filters.brand}%`);
+    }
+
+    if (filters.in_stock) {
+      sql += ` AND p.stock > 0`;
+    }
+
+    sql += ` ORDER BY p.is_featured DESC, p.created_at DESC`;
+
+    if (filters.limit) {
+      sql += ` LIMIT $${idx++}`;
+      params.push(filters.limit);
+    }
+
+    if (filters.offset) {
+      sql += ` OFFSET $${idx++}`;
+      params.push(filters.offset);
+    }
+
+    const { rows } = await db.query(sql, params);
+    return rows;
+  }
+
   // 🔹 Buscar productos (nombre, descripción, marca, categoría)
   static async searchProducts(queryString, filters = {}) {
     let sql = `
@@ -431,15 +493,97 @@ class Product {
     return rows;
   }
 
+  // 🔹 Obtener todos los productos (admin - incluye inactivos)
+  static async getAllAdmin(filters = {}) {
+    let query = `
+      SELECT 
+        p.*,
+        c.name as category_name,
+        c.slug as category_slug
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let idx = 1;
+
+    if (filters.category_id) {
+      query += ` AND p.category_id = $${idx++}`;
+      params.push(filters.category_id);
+    }
+
+    if (filters.is_active !== undefined) {
+      query += ` AND p.is_active = $${idx++}`;
+      params.push(filters.is_active);
+    }
+
+    if (filters.brand) {
+      query += ` AND p.brand ILIKE $${idx++}`;
+      params.push(`%${filters.brand}%`);
+    }
+
+    if (filters.in_stock) {
+      query += ` AND p.stock > 0`;
+    }
+
+    query += ` ORDER BY p.is_featured DESC, p.created_at DESC`;
+
+    if (filters.limit) {
+      query += ` LIMIT $${idx++}`;
+      params.push(filters.limit);
+    }
+
+    if (filters.offset) {
+      query += ` OFFSET $${idx++}`;
+      params.push(filters.offset);
+    }
+
+    const { rows } = await db.query(query, params);
+    return rows;
+  }
+
   // 🔹 Contar productos
   static async count(filters = {}) {
-    let query = 'SELECT COUNT(*) as total FROM products WHERE is_active = true';
+    let query = 'SELECT COUNT(*) as total FROM products WHERE 1=1';
     const params = [];
     let idx = 1;
 
     if (filters.category_id) {
       query += ` AND category_id = $${idx++}`;
       params.push(filters.category_id);
+    }
+
+    if (filters.is_active !== undefined) {
+      query += ` AND is_active = $${idx++}`;
+      params.push(filters.is_active);
+    } else {
+      // Si no se especifica, contar solo activos por defecto
+      query += ` AND is_active = true`;
+    }
+
+    if (filters.in_stock) {
+      query += ` AND stock > 0`;
+    }
+
+    const { rows } = await db.query(query, params);
+    return parseInt(rows[0].total);
+  }
+
+  // 🔹 Contar productos (admin - incluye inactivos)
+  static async countAdmin(filters = {}) {
+    let query = 'SELECT COUNT(*) as total FROM products WHERE 1=1';
+    const params = [];
+    let idx = 1;
+
+    if (filters.category_id) {
+      query += ` AND category_id = $${idx++}`;
+      params.push(filters.category_id);
+    }
+
+    if (filters.is_active !== undefined) {
+      query += ` AND is_active = $${idx++}`;
+      params.push(filters.is_active);
     }
 
     if (filters.in_stock) {

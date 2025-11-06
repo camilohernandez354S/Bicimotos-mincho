@@ -1,324 +1,373 @@
-import React, { useState } from 'react';
-import { Settings, Save, Eye, EyeOff, Upload, Trash2, Edit } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Save, Eye, EyeOff, Upload, User, Mail, Lock, Image as ImageIcon } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import AdminAuthService from '../../services/adminAuthService';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const AdminSettings = () => {
-  const [settings, setSettings] = useState({
-    storeName: 'Bicimotos Mincho',
-    storeEmail: 'info@bicimotosmincho.com',
-    storePhone: '+57 300 123 4567',
-    storeAddress: 'Calle 123 #45-67, Bogotá, Colombia',
-    currency: 'COP',
-    timezone: 'America/Bogota',
-    language: 'es',
-    notifications: {
-      email: true,
-      sms: false,
-      push: true
-    },
-    shipping: {
-      freeShippingMin: 500000,
-      standardShippingCost: 15000,
-      expressShippingCost: 25000
-    }
+  const [config, setConfig] = useState({ 
+    name: '', 
+    email: '', 
+    logo_path: '' 
   });
-
+  const [passwords, setPasswords] = useState({ 
+    currentPassword: '', 
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [activeTab, setActiveTab] = useState('general');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleInputChange = (field, value) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      setSettings(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const fetchConfig = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/configuracion`, {
+        method: 'GET',
+        headers: AdminAuthService.getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al obtener configuración');
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setConfig(result.data);
+        if (result.data.logo_path) {
+          setLogoPreview(`${API_BASE_URL.replace('/api', '')}${result.data.logo_path}`);
         }
-      }));
-    } else {
-      setSettings(prev => ({
-        ...prev,
-        [field]: value
-      }));
+      }
+    } catch (error) {
+      console.error('Error al cargar configuración:', error);
+      toast.error('Error al cargar configuración');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSave = () => {
-    // Aquí se implementaría la lógica para guardar en el backend
-    console.log('Guardando configuración:', settings);
-    // Mostrar toast de éxito
+  const handleSave = async () => {
+    if (!config.email) {
+      toast.error('El correo electrónico es requerido');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/configuracion`, {
+        method: 'PUT',
+        headers: {
+          ...AdminAuthService.getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: config.name || '',
+          email: config.email,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success('Configuración actualizada correctamente');
+        setConfig(result.data);
+      } else {
+        toast.error(result.message || 'Error al actualizar configuración');
+      }
+    } catch (error) {
+      console.error('Error al guardar configuración:', error);
+      toast.error('Error al guardar configuración');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const tabs = [
-    { id: 'general', label: 'General', icon: Settings },
-    { id: 'notifications', label: 'Notificaciones', icon: Settings },
-    { id: 'shipping', label: 'Envíos', icon: Settings },
-    { id: 'security', label: 'Seguridad', icon: Settings }
-  ];
+  const handlePasswordChange = async () => {
+    if (!passwords.currentPassword || !passwords.newPassword) {
+      toast.error('Todos los campos son requeridos');
+      return;
+    }
+
+    if (passwords.newPassword.length < 6) {
+      toast.error('La nueva contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      toast.error('Las contraseñas no coinciden');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/configuracion/password`, {
+        method: 'PUT',
+        headers: {
+          ...AdminAuthService.getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: passwords.currentPassword,
+          newPassword: passwords.newPassword,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success('Contraseña actualizada correctamente');
+        setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        toast.error(result.message || 'Error al actualizar contraseña');
+      }
+    } catch (error) {
+      console.error('Error al actualizar contraseña:', error);
+      toast.error('Error al actualizar contraseña');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validar tipo de archivo
+      if (!file.type.match(/^image\/(jpeg|jpg|png|webp|gif)$/)) {
+        toast.error('Solo se permiten imágenes (JPG, PNG, WEBP, GIF)');
+        return;
+      }
+
+      // Validar tamaño (5MB máximo)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('El archivo no debe exceder 5MB');
+        return;
+      }
+
+      setLogoFile(file);
+      
+      // Crear preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLogoUpload = async () => {
+    if (!logoFile) {
+      toast.error('Selecciona un archivo primero');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append('logo', logoFile);
+
+      const response = await fetch(`${API_BASE_URL}/admin/configuracion/logo`, {
+        method: 'POST',
+        headers: AdminAuthService.getAuthHeaders(),
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success('Logo actualizado correctamente');
+        setConfig({ ...config, logo_path: result.logo_path });
+        setLogoPreview(`${API_BASE_URL.replace('/api', '')}${result.logo_path}`);
+        setLogoFile(null);
+      } else {
+        toast.error(result.message || 'Error al subir logo');
+      }
+    } catch (error) {
+      console.error('Error al subir logo:', error);
+      toast.error('Error al subir logo');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Configuración</h1>
-          <p className="text-gray-600">Administra la configuración de tu tienda</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Configuración del Administrador</h1>
+          <p className="text-gray-600">Administra tu información personal y configuración</p>
         </div>
-        <button onClick={handleSave} className="btn-primary px-4 py-2">
-          <Save className="w-5 h-5 mr-2" />
-          Guardar Cambios
+      </div>
+
+      {/* Información Básica */}
+      <div className="bg-white rounded-xl shadow-card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+          <User className="w-5 h-5" />
+          Información Personal
+        </h2>
+        
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nombre
+            </label>
+            <input
+              type="text"
+              value={config.name || ''}
+              onChange={(e) => setConfig({ ...config, name: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Tu nombre"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Correo Electrónico <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="email"
+              value={config.email || ''}
+              onChange={(e) => setConfig({ ...config, email: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="tu@email.com"
+              required
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="mt-6 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
+        >
+          <Save className="w-5 h-5" />
+          {saving ? 'Guardando...' : 'Guardar Cambios'}
         </button>
       </div>
 
-      <div className="grid lg:grid-cols-4 gap-6">
-        {/* Sidebar de pestañas */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-card p-4">
-            <nav className="space-y-2">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-primary-50 text-primary-600 border-r-2 border-primary-500'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <tab.icon className="w-5 h-5" />
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
+      {/* Cambiar Contraseña */}
+      <div className="bg-white rounded-xl shadow-card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+          <Lock className="w-5 h-5" />
+          Cambiar Contraseña
+        </h2>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Contraseña Actual
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={passwords.currentPassword}
+                onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                placeholder="Ingresa tu contraseña actual"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nueva Contraseña
+            </label>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={passwords.newPassword}
+              onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Mínimo 6 caracteres"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirmar Nueva Contraseña
+            </label>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={passwords.confirmPassword}
+              onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Confirma tu nueva contraseña"
+            />
           </div>
         </div>
 
-        {/* Contenido de configuración */}
-        <div className="lg:col-span-3">
-          <div className="bg-white rounded-xl shadow-card p-6">
-            {/* Pestaña General */}
-            {activeTab === 'general' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Información General</h2>
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nombre de la Tienda
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.storeName}
-                      onChange={(e) => handleInputChange('storeName', e.target.value)}
-                      className="input w-full"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email de Contacto
-                    </label>
-                    <input
-                      type="email"
-                      value={settings.storeEmail}
-                      onChange={(e) => handleInputChange('storeEmail', e.target.value)}
-                      className="input w-full"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Teléfono
-                    </label>
-                    <input
-                      type="tel"
-                      value={settings.storePhone}
-                      onChange={(e) => handleInputChange('storePhone', e.target.value)}
-                      className="input w-full"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Moneda
-                    </label>
-                    <select
-                      value={settings.currency}
-                      onChange={(e) => handleInputChange('currency', e.target.value)}
-                      className="input w-full"
-                    >
-                      <option value="COP">Peso Colombiano (COP)</option>
-                      <option value="USD">Dólar Americano (USD)</option>
-                      <option value="EUR">Euro (EUR)</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dirección de la Tienda
-                  </label>
-                  <textarea
-                    value={settings.storeAddress}
-                    onChange={(e) => handleInputChange('storeAddress', e.target.value)}
-                    rows={3}
-                    className="input w-full"
-                  />
-                </div>
-              </div>
-            )}
+        <button
+          onClick={handlePasswordChange}
+          disabled={saving}
+          className="mt-6 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
+        >
+          <Lock className="w-5 h-5" />
+          {saving ? 'Actualizando...' : 'Actualizar Contraseña'}
+        </button>
+      </div>
 
-            {/* Pestaña Notificaciones */}
-            {activeTab === 'notifications' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Configuración de Notificaciones</h2>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h3 className="font-medium text-gray-900">Notificaciones por Email</h3>
-                      <p className="text-sm text-gray-600">Recibir notificaciones importantes por correo electrónico</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.notifications.email}
-                        onChange={(e) => handleInputChange('notifications.email', e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h3 className="font-medium text-gray-900">Notificaciones SMS</h3>
-                      <p className="text-sm text-gray-600">Recibir notificaciones por mensaje de texto</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.notifications.sms}
-                        onChange={(e) => handleInputChange('notifications.sms', e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h3 className="font-medium text-gray-900">Notificaciones Push</h3>
-                      <p className="text-sm text-gray-600">Recibir notificaciones en tiempo real en el navegador</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.notifications.push}
-                        onChange={(e) => handleInputChange('notifications.push', e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                    </label>
-                  </div>
-                </div>
+      {/* Logo del Panel */}
+      <div className="bg-white rounded-xl shadow-card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+          <ImageIcon className="w-5 h-5" />
+          Logo del Panel
+        </h2>
+        
+        <div className="space-y-4">
+          {logoPreview && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Vista Previa:</p>
+              <div className="border border-gray-300 rounded-lg p-4 inline-block">
+                <img 
+                  src={logoPreview} 
+                  alt="Logo actual" 
+                  className="h-24 object-contain"
+                />
               </div>
-            )}
-
-            {/* Pestaña Envíos */}
-            {activeTab === 'shipping' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Configuración de Envíos</h2>
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Envío Gratis Mínimo (COP)
-                    </label>
-                    <input
-                      type="number"
-                      value={settings.shipping.freeShippingMin}
-                      onChange={(e) => handleInputChange('shipping.freeShippingMin', parseInt(e.target.value))}
-                      className="input w-full"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Costo Envío Estándar (COP)
-                    </label>
-                    <input
-                      type="number"
-                      value={settings.shipping.standardShippingCost}
-                      onChange={(e) => handleInputChange('shipping.standardShippingCost', parseInt(e.target.value))}
-                      className="input w-full"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Costo Envío Express (COP)
-                    </label>
-                    <input
-                      type="number"
-                      value={settings.shipping.expressShippingCost}
-                      onChange={(e) => handleInputChange('shipping.expressShippingCost', parseInt(e.target.value))}
-                      className="input w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Pestaña Seguridad */}
-            {activeTab === 'security' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Configuración de Seguridad</h2>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cambiar Contraseña
-                    </label>
-                    <div className="space-y-3">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Contraseña actual"
-                        className="input w-full"
-                      />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Nueva contraseña"
-                        className="input w-full"
-                      />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Confirmar nueva contraseña"
-                        className="input w-full"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="flex items-center gap-2 text-sm text-gray-600"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        {showPassword ? 'Ocultar' : 'Mostrar'} contraseñas
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 bg-yellow-50 rounded-lg">
-                    <h3 className="font-medium text-yellow-800 mb-2">Sesiones Activas</h3>
-                    <p className="text-sm text-yellow-700 mb-3">Tienes 1 sesión activa en este dispositivo</p>
-                    <button className="btn-outline px-3 py-1 text-sm">
-                      Cerrar Todas las Sesiones
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Seleccionar Archivo
+            </label>
+            <input
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+              onChange={handleLogoChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Formatos permitidos: JPG, PNG, WEBP, GIF. Tamaño máximo: 5MB
+            </p>
           </div>
         </div>
+
+        <button
+          onClick={handleLogoUpload}
+          disabled={!logoFile || saving}
+          className="mt-6 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
+        >
+          <Upload className="w-5 h-5" />
+          {saving ? 'Subiendo...' : 'Subir Logo'}
+        </button>
       </div>
     </div>
   );
