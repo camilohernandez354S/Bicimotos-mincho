@@ -2,6 +2,7 @@ const db = require('../config/database');
 
 // ✅ Obtener todos los mensajes
 exports.getAllMessages = async (req, res) => {
+  console.log('🔍 getAllMessages ejecutándose...');
   try {
     const result = await db.query(`
       SELECT 
@@ -26,15 +27,18 @@ exports.getAllMessages = async (req, res) => {
         created_at DESC
     `);
     
+    console.log(`✅ getAllMessages: ${result.rows.length} mensajes encontrados`);
     res.status(200).json({ 
       success: true, 
       data: result.rows 
     });
   } catch (error) {
     console.error('❌ Error obteniendo mensajes:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({ 
       success: false, 
-      message: 'Error al obtener mensajes' 
+      message: 'Error al obtener mensajes',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -132,6 +136,7 @@ exports.deleteMessage = async (req, res) => {
 
 // ✅ Contador de mensajes no leídos (status = 'new')
 exports.getUnreadCount = async (req, res) => {
+  console.log('🔍 getUnreadCount ejecutándose...');
   try {
     const result = await db.query(
       "SELECT COUNT(*) AS unread FROM contact_messages WHERE status = 'new'"

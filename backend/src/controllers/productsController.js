@@ -399,6 +399,7 @@ const deleteProduct = async (req, res) => {
 
 // Obtener todos los productos (admin) - incluye inactivos
 const getAllProducts = async (req, res) => {
+  console.log('🔍 getAllProducts ejecutándose...');
   try {
     const { 
       page = 1, 
@@ -421,12 +422,14 @@ const getAllProducts = async (req, res) => {
       filters.is_active = false;
     }
 
+    // Para admin, usar getAllAdmin que incluye productos inactivos
     const products = search 
-      ? await Product.searchProducts(search, filters)
-      : await Product.getAll(filters);
+      ? await Product.searchProductsAdmin(search, filters)
+      : await Product.getAllAdmin(filters);
 
-    const total = await Product.count(filters);
+    const total = await Product.countAdmin(filters);
 
+    console.log(`✅ getAllProducts: ${products.length} productos encontrados (total: ${total})`);
     res.status(200).json({
       success: true,
       data: products,
@@ -439,10 +442,12 @@ const getAllProducts = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error obteniendo productos:', error);
+    console.error('❌ Error obteniendo productos:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

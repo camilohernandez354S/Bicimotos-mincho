@@ -118,10 +118,25 @@ const createTablesManually = async () => {
           id SERIAL PRIMARY KEY,
           email VARCHAR(255) UNIQUE NOT NULL,
           password VARCHAR(255) NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW()
+          name VARCHAR(255),
+          logo_path VARCHAR(255),
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
         );
       `);
       console.log('✅ Tabla admin_users creada/verificada');
+      
+      // Agregar columnas name y logo_path si no existen
+      try {
+        await db.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS name VARCHAR(255)');
+        await db.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS logo_path VARCHAR(255)');
+        await db.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+      } catch (alterError) {
+        // Las columnas ya existen, ignorar error
+        if (!alterError.message.includes('duplicate') && !alterError.message.includes('already exists')) {
+          console.warn('⚠️  Error agregando columnas a admin_users:', alterError.message);
+        }
+      }
     } catch (err) {
       if (!err.message.includes('already exists') && !err.message.includes('duplicate')) {
         console.warn('⚠️  admin_users:', err.message);
@@ -355,6 +370,9 @@ const adminRoutes = require('./routes/admin');
 const adminProductsRoutes = require('./routes/adminProducts');
 const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
 const adminMessagesRoutes = require('./routes/adminMessagesRoutes');
+const adminOrdersRoutes = require('./routes/adminOrdersRoutes');
+const adminReportsRoutes = require('./routes/adminReportsRoutes');
+const adminConfigRoutes = require('./routes/adminConfigRoutes');
 
 // Rutas públicas
 app.use('/api', publicRoutes);
@@ -364,6 +382,9 @@ app.use('/api', publicRoutes);
 app.use('/api/admin/dashboard', adminDashboardRoutes); // Más específica primero
 app.use('/api/admin/products', adminProductsRoutes);
 app.use('/api/admin/mensajes', adminMessagesRoutes);
+app.use('/api/admin/ordenes', adminOrdersRoutes);
+app.use('/api/admin/reportes', adminReportsRoutes);
+app.use('/api/admin/configuracion', adminConfigRoutes);
 app.use('/api/admin', adminRoutes); // General al final
 
 // Ruta de prueba
@@ -475,6 +496,34 @@ app.listen(PORT, () => {
   console.log(`🔐 API admin: http://localhost:${PORT}/api/admin`);
   console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
   console.log(`📊 Entorno: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Listar rutas registradas después de un breve delay
+  setTimeout(() => {
+    console.log('\n📋 RUTAS ADMIN REGISTRADAS:');
+    console.log('  ✅ GET    /api/admin/dashboard');
+    console.log('  ✅ GET    /api/admin/products');
+    console.log('  ✅ POST   /api/admin/products');
+    console.log('  ✅ GET    /api/admin/products/:id');
+    console.log('  ✅ PUT    /api/admin/products/:id');
+    console.log('  ✅ DELETE /api/admin/products/:id');
+    console.log('  ✅ GET    /api/admin/mensajes');
+    console.log('  ✅ GET    /api/admin/mensajes/count/unread');
+    console.log('  ✅ GET    /api/admin/mensajes/:id');
+    console.log('  ✅ PATCH  /api/admin/mensajes/:id/read');
+    console.log('  ✅ DELETE /api/admin/mensajes/:id');
+    console.log('  ✅ GET    /api/admin/ordenes');
+    console.log('  ✅ GET    /api/admin/ordenes/count/pending');
+    console.log('  ✅ GET    /api/admin/ordenes/:id');
+    console.log('  ✅ PATCH  /api/admin/ordenes/:id/status');
+    console.log('  ✅ DELETE /api/admin/ordenes/:id');
+    console.log('  ✅ GET    /api/admin/reportes');
+    console.log('  ✅ GET    /api/admin/reportes/export/pdf');
+    console.log('  ✅ GET    /api/admin/configuracion');
+    console.log('  ✅ PUT    /api/admin/configuracion');
+    console.log('  ✅ PUT    /api/admin/configuracion/password');
+    console.log('  ✅ POST   /api/admin/configuracion/logo');
+    console.log('');
+  }, 1500);
 });
 
 module.exports = app;

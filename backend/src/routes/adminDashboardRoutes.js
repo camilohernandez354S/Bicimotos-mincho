@@ -3,6 +3,8 @@ const router = express.Router();
 const verifyAdmin = require('../middlewares/verifyAdmin');
 const adminDashboardController = require('../controllers/adminDashboardController');
 
+console.log('✅ RUTA /api/admin/dashboard registrada');
+
 // Middleware de logging para debug
 router.use((req, res, next) => {
   console.log('🔍 Ruta dashboard - Método:', req.method, 'Path:', req.path);

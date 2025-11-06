@@ -4,11 +4,16 @@ const upload = require('../middleware/uploadMiddleware');
 const verifyAdmin = require('../middlewares/verifyAdmin');
 const productsController = require('../controllers/productsController');
 
+console.log('✅ RUTA /api/admin/products registrada');
+
 // Todas las rutas requieren autenticación de admin
 router.use(verifyAdmin);
 
 // GET /api/admin/products - Listar todos los productos (admin)
-router.get('/', productsController.getAllProducts);
+router.get('/', (req, res, next) => {
+  console.log('📦 Entrando a GET /api/admin/products');
+  next();
+}, productsController.getAllProducts);
 
 // POST /api/admin/products - Crear nuevo producto (con imagen obligatoria)
 router.post('/', upload.single('image'), productsController.createProduct);
