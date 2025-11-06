@@ -17,7 +17,7 @@ import Contacto from './pages/Contacto';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './components/admin/AdminProducts';
-import AdminMessages from './components/admin/AdminMessages';
+import AdminMessages from './pages/AdminMessages';
 import AdminOrders from './components/admin/AdminOrders';
 import AdminReports from './components/admin/AdminReports';
 import AdminSettings from './components/admin/AdminSettings';

@@ -354,6 +354,7 @@ const publicRoutes = require('./routes/public');
 const adminRoutes = require('./routes/admin');
 const adminProductsRoutes = require('./routes/adminProducts');
 const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
+const adminMessagesRoutes = require('./routes/adminMessagesRoutes');
 
 // Rutas públicas
 app.use('/api', publicRoutes);
@@ -362,6 +363,7 @@ app.use('/api', publicRoutes);
 // IMPORTANTE: Las rutas más específicas deben ir ANTES de las generales
 app.use('/api/admin/dashboard', adminDashboardRoutes); // Más específica primero
 app.use('/api/admin/products', adminProductsRoutes);
+app.use('/api/admin/mensajes', adminMessagesRoutes);
 app.use('/api/admin', adminRoutes); // General al final
 
 // Ruta de prueba

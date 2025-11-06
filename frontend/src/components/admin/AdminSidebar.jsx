@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   BarChart3, 
@@ -12,9 +12,39 @@ import {
   ChevronRight
 } from 'lucide-react';
 import clsx from 'clsx';
+import AdminAuthService from '../../services/adminAuthService';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const AdminSidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/mensajes/count/unread`, {
+        method: 'GET',
+        headers: AdminAuthService.getAuthHeaders(),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setUnreadCount(result.count || 0);
+        }
+      }
+    } catch (error) {
+      // Silenciar errores para no saturar la consola
+      console.warn('Error obteniendo contador de mensajes:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnreadCount();
+    // Actualizar cada 10 segundos
+    const interval = setInterval(fetchUnreadCount, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const menuItems = [
     { 
@@ -36,7 +66,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
       icon: MessageSquare, 
       label: 'Mensajes', 
       href: '/admin/mensajes',
-      badge: '7'
+      badge: unreadCount > 0 ? unreadCount.toString() : null
     },
     { 
       id: 'ordenes', 
