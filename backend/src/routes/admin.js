@@ -29,29 +29,10 @@ router.put('/change-password', verifyAdmin, authController.changePassword);
 
 // ========== RUTAS DE DASHBOARD ==========
 
-// Dashboard principal (protegida)
-router.get('/dashboard', verifyAdmin, async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      message: 'Bienvenido al Dashboard del Administrador',
-      data: {
-        admin: req.admin,
-        stats: {
-          totalProducts: 0,
-          activeProducts: 0,
-          totalCategories: 0,
-          totalMessages: 0
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error obteniendo dashboard:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor'
-    });
-  }
-});
+// Dashboard principal - MOVIDO A adminDashboardRoutes.js
+// Esta ruta está deshabilitada porque ahora se maneja en adminDashboardRoutes.js
+// router.get('/dashboard', verifyAdmin, async (req, res) => {
+//   ...
+// });
 
 module.exports = router;
