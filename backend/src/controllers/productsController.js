@@ -230,6 +230,37 @@ const createProduct = async (req, res) => {
       });
     }
 
+    if (!data.category_id || Number.isNaN(data.category_id)) {
+      if (req.file) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Debes seleccionar una categoría para el producto.'
+      });
+    }
+
+    const category = await Category.getById(data.category_id);
+    if (!category || category.is_active === false) {
+      if (req.file) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'La categoría seleccionada no es válida.'
+      });
+    }
+
     const product = await Product.create(data);
 
     res.status(201).json({
@@ -279,19 +310,6 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    // Si hay nueva imagen subida, usar su ruta y eliminar la anterior
-    if (req.file) {
-      // Eliminar imagen anterior si existe
-      if (currentProduct.image_url) {
-        const fs = require('fs');
-        const path = require('path');
-        const oldImagePath = path.join(__dirname, '../../', currentProduct.image_url);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
-    }
-
     // Los datos vienen directamente en req.body desde FormData procesado por multer
     const updateData = {};
     
@@ -306,9 +324,6 @@ const updateProduct = async (req, res) => {
     if (req.body.sku !== undefined) updateData.sku = req.body.sku;
     if (req.body.brand !== undefined) updateData.brand = req.body.brand || null;
     if (req.body.model !== undefined) updateData.model = req.body.model || null;
-    if (req.body.category_id !== undefined && req.body.category_id !== '') {
-      updateData.category_id = parseInt(req.body.category_id, 10);
-    }
     if (req.body.is_active !== undefined) {
       updateData.is_active = req.body.is_active === 'true' || req.body.is_active === true;
     }
@@ -316,8 +331,70 @@ const updateProduct = async (req, res) => {
       updateData.is_featured = req.body.is_featured === 'true' || req.body.is_featured === true;
     }
     
-    // Actualizar imagen si se subió nueva
+    let categoryIdToUse = currentProduct.category_id ? parseInt(currentProduct.category_id, 10) : null;
+
+    if (req.body.category_id !== undefined) {
+      const parsedCategoryId = parseInt(req.body.category_id, 10);
+      if (!parsedCategoryId || Number.isNaN(parsedCategoryId)) {
+        if (req.file) {
+          const fs = require('fs');
+          const path = require('path');
+          const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        }
+        return res.status(400).json({
+          success: false,
+          message: 'Debes seleccionar una categoría válida para el producto.'
+        });
+      }
+      categoryIdToUse = parsedCategoryId;
+    }
+
+    if (!categoryIdToUse || Number.isNaN(categoryIdToUse)) {
+      if (req.file) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'El producto debe pertenecer a una categoría.'
+      });
+    }
+
+    const category = await Category.getById(categoryIdToUse);
+    if (!category || category.is_active === false) {
+      if (req.file) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'La categoría seleccionada no es válida.'
+      });
+    }
+
+    updateData.category_id = categoryIdToUse;
+
+    // Actualizar imagen si se subió nueva (eliminar la anterior después de validar)
     if (req.file) {
+      if (currentProduct.image_url) {
+        const fs = require('fs');
+        const path = require('path');
+        const oldImagePath = path.join(__dirname, '../../', currentProduct.image_url);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
       updateData.image_url = `/uploads/products/${req.file.filename}`;
     }
 

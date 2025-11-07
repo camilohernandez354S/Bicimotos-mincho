@@ -12,6 +12,7 @@ const Productos = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [categories, setCategories] = useState([]);
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,19 +78,37 @@ const Productos = () => {
     }
   ];
 
-  const categories = [
-    'Todos',
-    'Frenos',
-    'Cambios',
-    'Pedales',
-    'Transmisión',
-    'Ruedas',
-    'Suspensión'
-  ];
-
   useEffect(() => {
     loadProducts();
   }, [currentPage, selectedCategory, sortBy, sortOrder]);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/public/categorias`);
+
+      if (!response.ok) {
+        throw new Error('Error al cargar categorías');
+      }
+
+      const result = await response.json();
+      if (result.success && Array.isArray(result.data)) {
+        setCategories(result.data.map((category) => ({
+          id: String(category.id),
+          name: category.name,
+        })));
+      } else {
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('Error cargando categorías:', error);
+      toast.error('No se pudieron cargar las categorías');
+      setCategories([]);
+    }
+  };
 
   const loadProducts = async () => {
     setLoading(true);
@@ -104,7 +123,7 @@ const Productos = () => {
         params.append('search', searchTerm);
       }
 
-      if (selectedCategory && selectedCategory !== 'Todos') {
+      if (selectedCategory) {
         params.append('category_id', selectedCategory);
       }
 
@@ -217,10 +236,16 @@ const Productos = () => {
               <select
                 className="input py-2"
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setCurrentPage(1);
+                }}
               >
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                <option value="">Todas las categorías</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
                 ))}
               </select>
             </div>

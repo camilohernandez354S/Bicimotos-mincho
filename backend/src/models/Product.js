@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const Category = require('./Category');
 
 class Product {
   // 🔹 Listar todos los productos activos
@@ -105,6 +106,16 @@ class Product {
       throw new Error('El SKU ya existe');
     }
 
+    const parsedCategoryId = parseInt(category_id, 10);
+    if (!parsedCategoryId || Number.isNaN(parsedCategoryId)) {
+      throw new Error('La categoría es requerida');
+    }
+
+    const category = await Category.getById(parsedCategoryId);
+    if (!category || category.is_active === false) {
+      throw new Error('La categoría seleccionada no es válida');
+    }
+
     const query = `
       INSERT INTO products (
         name, description, price, original_price, stock, sku,
@@ -130,7 +141,7 @@ class Product {
       sku.toUpperCase().trim(),
       brand.trim(),
       model ? model.trim() : null,
-      category_id || null,
+      parsedCategoryId,
       image_url || null,
       images ? JSON.stringify(images) : null,
       specifications ? JSON.stringify(specifications) : JSON.stringify({}),
@@ -173,6 +184,20 @@ class Product {
     // Validar stock
     if (data.stock !== undefined && data.stock < 0) {
       throw new Error('El stock no puede ser negativo');
+    }
+
+    if (data.category_id !== undefined) {
+      const parsedCategoryId = parseInt(data.category_id, 10);
+      if (!parsedCategoryId || Number.isNaN(parsedCategoryId)) {
+        throw new Error('La categoría es requerida');
+      }
+
+      const category = await Category.getById(parsedCategoryId);
+      if (!category || category.is_active === false) {
+        throw new Error('La categoría seleccionada no es válida');
+      }
+
+      data.category_id = parsedCategoryId;
     }
 
     const fields = [];

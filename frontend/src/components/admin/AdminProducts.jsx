@@ -70,14 +70,17 @@ const AdminProducts = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_URL}/categories`);
+      const response = await fetch(`${API_URL}/public/categorias`);
       const data = await response.json();
-      
+
       if (data.success) {
-        setCategories(data.data || []);
+        setCategories((data.data || []).map(cat => ({ id: cat.id, name: cat.name })));
+      } else {
+        toast.error('No fue posible cargar las categorías');
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+      toast.error('Error al cargar las categorías');
     }
   };
 
@@ -90,7 +93,7 @@ const AdminProducts = () => {
         price: product.price || '',
         original_price: product.original_price || '',
         stock: product.stock || '',
-        category_id: product.category_id || '',
+        category_id: product.category_id ? String(product.category_id) : '',
         brand: product.brand || '',
         model: product.model || '',
         sku: product.sku || '',
@@ -176,6 +179,11 @@ const AdminProducts = () => {
       return;
     }
     
+    if (!formData.category_id) {
+      toast.error('Selecciona una categoría para el producto');
+      return;
+    }
+
     setSaving(true);
     
     try {
@@ -188,7 +196,7 @@ const AdminProducts = () => {
       formDataToSend.append('sku', formData.sku);
       formDataToSend.append('brand', formData.brand || '');
       formDataToSend.append('model', formData.model || '');
-      formDataToSend.append('category_id', formData.category_id || '');
+      formDataToSend.append('category_id', formData.category_id);
       formDataToSend.append('is_active', formData.is_active);
       formDataToSend.append('is_featured', formData.is_featured);
       
@@ -583,15 +591,16 @@ const AdminProducts = () => {
               {/* Categoría */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Categoría
+                  Categoría <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="category_id"
                   value={formData.category_id}
                   onChange={handleInputChange}
                   className="input w-full"
+                  required
                 >
-                  <option value="">Seleccionar categoría</option>
+                  <option value="">Selecciona una categoría</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}

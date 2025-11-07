@@ -163,7 +163,7 @@ const createTablesManually = async () => {
       await db.query(`
         CREATE TABLE IF NOT EXISTS categories (
           id SERIAL PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
+          name VARCHAR(255) UNIQUE NOT NULL,
           slug VARCHAR(255) UNIQUE NOT NULL,
           description TEXT,
           image_url TEXT,
@@ -172,6 +172,7 @@ const createTablesManually = async () => {
           updated_at TIMESTAMP DEFAULT NOW()
         );
       `);
+
       console.log('✅ Tabla categories creada/verificada');
     } catch (err) {
       if (!err.message.includes('already exists') && !err.message.includes('duplicate')) {
@@ -382,6 +383,7 @@ connectDB();
 // Importar rutas
 const publicRoutes = require('./routes/public');
 const publicRoutesEs = require('./routes/publicRoutes');
+const publicCategoriesRoutes = require('./routes/publicCategoriesRoutes');
 const adminRoutes = require('./routes/admin');
 const adminProductsRoutes = require('./routes/adminProducts');
 const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
@@ -391,6 +393,7 @@ const adminReportsRoutes = require('./routes/adminReportsRoutes');
 const adminConfigRoutes = require('./routes/adminConfigRoutes');
 
 // Rutas públicas
+app.use('/api/public/categorias', publicCategoriesRoutes);
 app.use('/api/public', publicRoutesEs);
 app.use('/api', publicRoutes);
 
