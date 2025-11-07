@@ -40,14 +40,29 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Middleware CORS - configurado para permitir imágenes desde el frontend
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+const allowedOrigins = [
+  'http://localhost:3000',
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+];
+
+const corsOptions = {
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Type', 'Content-Length']
-}));
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+};
+
+// Middleware CORS - configurado para permitir peticiones desde el frontend
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+app.use((req, res, next) => {
+  if (req.headers.origin) {
+    console.log('🌍 CORS request from:', req.headers.origin);
+  }
+  next();
+});
 
 // Servir archivos estáticos (imágenes) - ANTES de las rutas para evitar conflictos
 const path = require('path');
