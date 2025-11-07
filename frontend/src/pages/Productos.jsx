@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Star, ShoppingCart, Heart, Eye, Loader2 } from 'lucide-react';
+import { Search, Star, Heart, Eye, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { toast } from 'react-hot-toast';
 import SidebarCategorias from '../components/SidebarCategorias';
@@ -379,11 +379,20 @@ const Productos = () => {
                     </div>
 
                     <button
-                      onClick={() => addToCart(product)}
+                      onClick={() => {
+                        const mensaje = encodeURIComponent(
+                          `Hola, quiero más información sobre el producto "${product.name}".`
+                        );
+                        const telefono = '3124779860';
+                        const url = `https://wa.me/57${telefono}?text=${mensaje}`;
+                        window.open(url, '_blank');
+                      }}
                       className="btn-primary w-full py-2 flex items-center justify-center gap-2"
                     >
-                      <ShoppingCart className="w-4 h-4" />
-                      Agregar al Carrito
+                      <span role="img" aria-label="carrito" className="text-base">
+                        🛒
+                      </span>
+                      Comprar
                     </button>
                   </div>
                 </div>

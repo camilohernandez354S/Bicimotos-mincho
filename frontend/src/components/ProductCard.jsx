@@ -1,22 +1,8 @@
 import React from 'react';
-import { ShoppingCart, Heart, Star, Truck, Shield } from 'lucide-react';
-import { useCart } from '../contexts/CartContext';
-import { useAuth } from '../contexts/AuthContext';
+import { Heart, Star, Truck, Shield } from 'lucide-react';
 import clsx from 'clsx';
 
 const ProductCard = ({ product, className }) => {
-  const { addToCart, isInCart, getItemQuantity } = useCart();
-  const { isAuthenticated } = useAuth();
-
-  const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      // Redirigir al login o mostrar modal
-      return;
-    }
-
-    const currentQuantity = getItemQuantity(product.id);
-    await addToCart(product.id, currentQuantity + 1);
-  };
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('es-CO', {
@@ -141,21 +127,22 @@ const ProductCard = ({ product, className }) => {
         {/* Botones */}
         <div className="flex gap-2">
           <button
-            onClick={handleAddToCart}
-            disabled={product.stock === 0 || !isAuthenticated}
-            className={clsx(
-              'flex-1 btn-primary py-3 text-sm font-medium',
-              product.stock === 0 || !isAuthenticated
-                ? 'opacity-50 cursor-not-allowed'
-                : isInCart(product.id)
-                ? 'bg-green-500 hover:bg-green-600'
-                : ''
-            )}
+            onClick={() => {
+              const mensaje = encodeURIComponent(
+                `Hola, quiero más información sobre el producto "${product.name}".`
+              );
+              const telefono = '3184280375';
+              const url = `https://wa.me/57${telefono}?text=${mensaje}`;
+              window.open(url, '_blank');
+            }}
+            className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 rounded-md transition-all flex items-center justify-center gap-2 shadow-sm"
           >
-            <ShoppingCart className="w-4 h-4 mr-2" />
-            {isInCart(product.id) ? 'En carrito' : 'Agregar'}
+            <span role="img" aria-label="carrito" className="text-base">
+              🛒
+            </span>
+            Comprar
           </button>
-          
+
           <button className="btn-outline px-3 py-3">
             <Heart className="w-4 h-4" />
           </button>
