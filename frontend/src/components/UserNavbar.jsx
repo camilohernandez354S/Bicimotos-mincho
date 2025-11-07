@@ -51,11 +51,11 @@ function MegaMenu({ openIndex }) {
       <div className="w-[90vw] max-w-5xl px-8 py-8">
         <div
           className={clsx(
-            "grid gap-x-12 gap-y-6 text-gray-700",
-            cat.columns.length === 1 && "grid-cols-1",
-            cat.columns.length === 2 && "grid-cols-2",
-            cat.columns.length === 3 && "grid-cols-3",
-            cat.columns.length === 4 && "grid-cols-4"
+            'grid gap-x-12 gap-y-6 text-gray-700',
+            cat.columns.length === 1 && 'grid-cols-1',
+            cat.columns.length === 2 && 'grid-cols-2',
+            cat.columns.length === 3 && 'grid-cols-3',
+            cat.columns.length === 4 && 'grid-cols-4'
           )}
         >
           {cat.columns.map((col, idx) => (
@@ -95,7 +95,7 @@ const UserNavbar = () => {
         <div className="flex items-center justify-between py-4">
           {/* Logo y marca */}
           <div className="flex items-center gap-4">
-            <button 
+            <button
               className="md:hidden text-gray-600 hover:text-primary-500 transition-colors"
               onClick={() => setMobileOpen(!mobileOpen)}
             >
@@ -139,33 +139,35 @@ const UserNavbar = () => {
         </div>
 
         {/* Navegación desktop */}
-        <nav className="hidden md:block border-t border-gray-100">
-          <div className="wrapper">
-            <div className="flex gap-8 py-4">
-            {NAV_CATEGORIES.map((c, idx) => (
-              <div
-                key={c.label}
-                className="relative"
-                onMouseEnter={() => setOpenIndex(idx)}
-                onMouseLeave={() => setOpenIndex(null)}
-              >
-                <button
-                  className={clsx(
-                    'flex items-center gap-1 px-3 py-2 font-medium transition-colors rounded-lg',
-                    openIndex === idx 
-                      ? 'text-primary-500 bg-primary-50' 
-                      : 'text-gray-700 hover:text-primary-500 hover:bg-gray-50'
-                  )}
-                >
-                  {c.label}
-                  {c.columns.length > 0 && <ChevronDown className="w-4 h-4" />}
-                </button>
-                {openIndex === idx && <MegaMenu openIndex={idx} />}
+        {false && (
+          <nav className="hidden md:block border-t border-gray-100">
+            <div className="wrapper">
+              <div className="flex gap-8 py-4">
+                {NAV_CATEGORIES.map((c, idx) => (
+                  <div
+                    key={c.label}
+                    className="relative"
+                    onMouseEnter={() => setOpenIndex(idx)}
+                    onMouseLeave={() => setOpenIndex(null)}
+                  >
+                    <button
+                      className={clsx(
+                        'flex items-center gap-1 px-3 py-2 font-medium transition-colors rounded-lg',
+                        openIndex === idx
+                          ? 'text-primary-500 bg-primary-50'
+                          : 'text-gray-700 hover:text-primary-500 hover:bg-gray-50'
+                      )}
+                    >
+                      {c.label}
+                      {c.columns.length > 0 && <ChevronDown className="w-4 h-4" />}
+                    </button>
+                    {openIndex === idx && <MegaMenu openIndex={idx} />}
+                  </div>
+                ))}
               </div>
-            ))}
             </div>
-          </div>
-        </nav>
+          </nav>
+        )}
       </div>
 
       {/* Menú móvil */}
@@ -183,8 +185,8 @@ const UserNavbar = () => {
             <ul className="space-y-2">
               {NAV_CATEGORIES.map((c) => (
                 <li key={c.label}>
-                  <a 
-                    href="#" 
+                  <a
+                    href="#"
                     className="block px-3 py-2 text-gray-700 font-medium hover:text-primary-500 hover:bg-gray-50 rounded-lg transition-colors"
                   >
                     {c.label}
