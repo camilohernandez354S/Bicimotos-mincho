@@ -1,5 +1,14 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const db = require('../config/database');
+
+const generateSKU = (name, brand, category) => {
+  const cat = (category || 'XX').replace(/[^a-zA-Z0-9]/g, '').substring(0, 2).toUpperCase().padEnd(2, 'X');
+  const br = (brand || 'GEN').replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'N');
+  const nm = (name || 'PROD').replace(/[^a-zA-Z0-9]/g, '').substring(0, 5).toUpperCase().padEnd(5, 'X');
+  const random = Math.floor(100 + Math.random() * 900);
+  return `${cat}-${br}-${nm}-${random}`;
+};
 
 // Obtener todos los productos (público)
 const getProducts = async (req, res) => {
@@ -194,6 +203,42 @@ const createProduct = async (req, res) => {
         message: 'La imagen es obligatoria para crear un producto'
       });
     }
+
+    const { name: bodyName, brand: bodyBrand, category_id: bodyCategoryId } = req.body;
+    const parsedCategoryId = bodyCategoryId ? parseInt(bodyCategoryId, 10) : null;
+
+    if (!parsedCategoryId || Number.isNaN(parsedCategoryId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Debes seleccionar una categoría para el producto.'
+      });
+    }
+
+    let categoryName = 'General';
+    try {
+      const { rows: categoryRows } = await db.query('SELECT name, is_active FROM categories WHERE id = $1', [parsedCategoryId]);
+
+      if (!categoryRows.length || categoryRows[0].is_active === false) {
+        return res.status(400).json({
+          success: false,
+          message: 'La categoría seleccionada no es válida.'
+        });
+      }
+
+      categoryName = categoryRows[0].name || 'General';
+    } catch (error) {
+      console.error('Error verificando categoría:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error verificando la categoría del producto'
+      });
+    }
+
+    if (!req.body.sku || req.body.sku.trim() === '') {
+      req.body.sku = generateSKU(bodyName || '', bodyBrand || '', categoryName);
+    }
+
+    req.body.category_id = parsedCategoryId;
 
     // Los datos vienen directamente en req.body desde FormData procesado por multer
     const image_url = `/uploads/products/${req.file.filename}`;

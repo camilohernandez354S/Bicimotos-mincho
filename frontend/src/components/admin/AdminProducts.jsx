@@ -17,6 +17,17 @@ import { getWithAuth, deleteWithAuth, fetchWithAuth } from '../../utils/fetchWit
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
+const generateSKU = ({ name, brand, category }) => {
+  if (!name || !category) return '';
+
+  const catCode = category.replace(/[^a-zA-Z0-9]/g, '').substring(0, 2).toUpperCase().padEnd(2, 'X');
+  const brandCode = (brand || 'GEN').replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'N');
+  const nameCode = name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5).toUpperCase().padEnd(5, 'X');
+  const random = Math.floor(100 + Math.random() * 900);
+
+  return `${catCode}-${brandCode}-${nameCode}-${random}`;
+};
+
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -46,6 +57,31 @@ const AdminProducts = () => {
     fetchProducts();
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    if (editingProduct) return;
+    if (!formData.name || !formData.category_id) return;
+    if (!categories.length) return;
+
+    const selectedCategory = categories.find(
+      (cat) => String(cat.id) === String(formData.category_id)
+    );
+
+    if (!selectedCategory) return;
+
+    const newSku = generateSKU({
+      name: formData.name,
+      brand: formData.brand,
+      category: selectedCategory.name,
+    });
+
+    if (!newSku || formData.sku === newSku) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      sku: newSku,
+    }));
+  }, [formData.name, formData.category_id, formData.brand, categories, editingProduct]);
 
   const fetchProducts = async () => {
     try {
@@ -553,8 +589,9 @@ const AdminProducts = () => {
                     type="text"
                     name="sku"
                     value={formData.sku}
-                    onChange={handleInputChange}
                     className="input w-full"
+                    placeholder="Se generará automáticamente"
+                    readOnly
                     required
                   />
                 </div>
