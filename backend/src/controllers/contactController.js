@@ -2,6 +2,7 @@ const ContactMessage = require('../models/ContactMessage');
 
 // Crear mensaje de contacto (público)
 const createMessage = async (req, res) => {
+  console.log('📩 createMessage ejecutándose...');
   try {
     const messageData = {
       name: req.body.name,
@@ -15,6 +16,7 @@ const createMessage = async (req, res) => {
 
     const message = await ContactMessage.create(messageData);
 
+    console.log(`✅ createMessage: Mensaje creado con ID ${message.id}`);
     res.status(201).json({
       success: true,
       message: 'Mensaje enviado exitosamente. Te contactaremos pronto.',
@@ -26,7 +28,8 @@ const createMessage = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creando mensaje:', error);
+    console.error('❌ Error creando mensaje:', error);
+    console.error('❌ Stack:', error.stack);
     
     if (error.message.includes('requeridos') || error.message.includes('Email inválido')) {
       return res.status(400).json({
@@ -37,7 +40,8 @@ const createMessage = async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

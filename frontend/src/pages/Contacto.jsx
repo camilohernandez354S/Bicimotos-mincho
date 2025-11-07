@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
 const Contacto = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -25,20 +27,46 @@ const Contacto = () => {
     setSending(true);
 
     try {
-      // Simular envío de mensaje
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast.success('Mensaje enviado exitosamente. Te contactaremos pronto.');
-      
-      // Limpiar formulario
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        subject: '',
-        message: ''
+      // Validar campos requeridos
+      if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+        toast.error('Por favor completa todos los campos requeridos');
+        setSending(false);
+        return;
+      }
+
+      // Enviar mensaje al backend
+      const response = await fetch(`${API_BASE_URL}/public/contacto`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || null,
+          subject: formData.subject,
+          message: formData.message,
+        }),
       });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('Mensaje enviado exitosamente. Te contactaremos pronto.');
+        
+        // Limpiar formulario
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          subject: '',
+          message: ''
+        });
+      } else {
+        toast.error(result.message || 'Error al enviar el mensaje. Intenta de nuevo.');
+      }
     } catch (error) {
+      console.error('Error enviando mensaje:', error);
       toast.error('Error al enviar el mensaje. Intenta de nuevo.');
     } finally {
       setSending(false);

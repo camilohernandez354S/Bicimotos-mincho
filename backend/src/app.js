@@ -366,6 +366,7 @@ connectDB();
 
 // Importar rutas
 const publicRoutes = require('./routes/public');
+const publicRoutesEs = require('./routes/publicRoutes');
 const adminRoutes = require('./routes/admin');
 const adminProductsRoutes = require('./routes/adminProducts');
 const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
@@ -375,6 +376,7 @@ const adminReportsRoutes = require('./routes/adminReportsRoutes');
 const adminConfigRoutes = require('./routes/adminConfigRoutes');
 
 // Rutas públicas
+app.use('/api/public', publicRoutesEs);
 app.use('/api', publicRoutes);
 
 // Rutas privadas (admin)

@@ -3,6 +3,10 @@ import { useParams } from 'react-router-dom';
 import { Star, ShoppingCart, Heart, ArrowLeft, Truck, Shield, RotateCcw, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
+import toast from 'react-hot-toast';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 const ProductoDetalle = () => {
   const { id } = useParams();
@@ -91,11 +95,74 @@ const ProductoDetalle = () => {
 
   const loadProduct = async () => {
     setLoading(true);
-    // Simular llamada a API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setProduct(mockProduct);
-    setRelatedProducts(mockRelatedProducts);
-    setLoading(false);
+    try {
+      // Obtener producto por ID
+      const productResponse = await fetch(`${API_BASE_URL}/public/productos/${id}`);
+      
+      if (!productResponse.ok) {
+        throw new Error('Producto no encontrado');
+      }
+
+      const productResult = await productResponse.json();
+      
+      if (productResult.success && productResult.data) {
+        const productData = productResult.data;
+        
+        // Mapear datos del backend al formato esperado
+        const mappedProduct = {
+          id: productData.id,
+          name: productData.name,
+          description: productData.description,
+          longDescription: productData.description, // Usar description como longDescription si no hay otro campo
+          price: parseFloat(productData.price),
+          originalPrice: productData.original_price ? parseFloat(productData.original_price) : null,
+          images: productData.image_url 
+            ? [`${BACKEND_URL}${productData.image_url}`]
+            : ['/img/logo.jpg'],
+          brand: productData.brand || 'Sin marca',
+          category: productData.category_name || 'Sin categoría',
+          rating: productData.rating_average || 0,
+          reviews: productData.rating_count || 0,
+          stock: productData.stock || 0,
+          sku: productData.sku || 'N/A',
+          specifications: productData.specifications || {},
+          features: productData.features || [],
+        };
+
+        setProduct(mappedProduct);
+        setSelectedImage(0);
+
+        // Obtener productos relacionados
+        try {
+          const relatedResponse = await fetch(`${API_BASE_URL}/public/productos/${id}/relacionados?limit=3`);
+          if (relatedResponse.ok) {
+            const relatedResult = await relatedResponse.json();
+            if (relatedResult.success && relatedResult.data) {
+              const mappedRelated = relatedResult.data.map(p => ({
+                id: p.id,
+                name: p.name,
+                price: parseFloat(p.price),
+                originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+                image: p.image_url ? `${BACKEND_URL}${p.image_url}` : '/img/logo.jpg',
+                rating: p.rating_average || 0,
+              }));
+              setRelatedProducts(mappedRelated);
+            }
+          }
+        } catch (error) {
+          console.warn('Error cargando productos relacionados:', error);
+          setRelatedProducts([]);
+        }
+      } else {
+        throw new Error('Producto no encontrado');
+      }
+    } catch (error) {
+      console.error('Error cargando producto:', error);
+      toast.error('Error al cargar el producto');
+      setProduct(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addToCart = () => {
@@ -149,29 +216,37 @@ const ProductoDetalle = () => {
           <div className="space-y-4">
             <div className="aspect-square bg-white rounded-xl shadow-card overflow-hidden">
               <img
-                src={product.images[selectedImage]}
+                src={product.images && product.images[selectedImage] ? product.images[selectedImage] : '/img/logo.jpg'}
                 alt={product.name}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = '/img/logo.jpg';
+                }}
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              {product.images.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={clsx(
-                    "aspect-square bg-white rounded-lg overflow-hidden border-2 transition-colors",
-                    selectedImage === index ? "border-primary-500" : "border-gray-200"
-                  )}
-                >
-                  <img
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
-            </div>
+            {product.images && product.images.length > 1 && (
+              <div className="grid grid-cols-3 gap-4">
+                {product.images.map((image, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setSelectedImage(index)}
+                    className={clsx(
+                      "aspect-square bg-white rounded-lg overflow-hidden border-2 transition-colors",
+                      selectedImage === index ? "border-primary-500" : "border-gray-200"
+                    )}
+                  >
+                    <img
+                      src={image}
+                      alt={`${product.name} ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = '/img/logo.jpg';
+                      }}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Información del Producto */}
@@ -266,17 +341,19 @@ const ProductoDetalle = () => {
             </div>
 
             {/* Características */}
-            <div className="bg-gray-50 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Características principales</h3>
-              <ul className="space-y-2">
-                {product.features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {product.features && product.features.length > 0 && (
+              <div className="bg-gray-50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Características principales</h3>
+                <ul className="space-y-2">
+                  {product.features.map((feature, index) => (
+                    <li key={index} className="flex items-center gap-2 text-gray-700">
+                      <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Beneficios */}
             <div className="grid grid-cols-3 gap-4">
@@ -297,19 +374,21 @@ const ProductoDetalle = () => {
         </div>
 
         {/* Especificaciones Técnicas */}
-        <div className="mt-12 bg-white rounded-xl shadow-card p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Especificaciones Técnicas</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            {Object.entries(product.specifications).map(([key, value]) => (
-              <div key={key} className="flex justify-between py-2 border-b border-gray-200">
-                <span className="font-medium text-gray-700 capitalize">
-                  {key.replace(/([A-Z])/g, ' $1').trim()}:
-                </span>
-                <span className="text-gray-900">{value}</span>
-              </div>
-            ))}
+        {product.specifications && Object.keys(product.specifications).length > 0 && (
+          <div className="mt-12 bg-white rounded-xl shadow-card p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Especificaciones Técnicas</h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              {Object.entries(product.specifications).map(([key, value]) => (
+                <div key={key} className="flex justify-between py-2 border-b border-gray-200">
+                  <span className="font-medium text-gray-700 capitalize">
+                    {key.replace(/([A-Z])/g, ' $1').trim() || key}:
+                  </span>
+                  <span className="text-gray-900">{typeof value === 'object' ? JSON.stringify(value) : value}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Productos Relacionados */}
         {relatedProducts.length > 0 && (
@@ -326,6 +405,9 @@ const ProductoDetalle = () => {
                     src={relatedProduct.image}
                     alt={relatedProduct.name}
                     className="w-full h-48 object-cover"
+                    onError={(e) => {
+                      e.target.src = '/img/logo.jpg';
+                    }}
                   />
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-900 mb-2">{relatedProduct.name}</h3>

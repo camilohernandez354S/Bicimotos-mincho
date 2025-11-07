@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Filter, Star, ShoppingCart, Heart, Eye, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
+import { toast } from 'react-hot-toast';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 const Productos = () => {
   const [products, setProducts] = useState([]);
@@ -13,7 +17,7 @@ const Productos = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Mock data para desarrollo
+  // Mock data para desarrollo (fallback)
   const mockProducts = [
     {
       id: 1,
@@ -89,38 +93,75 @@ const Productos = () => {
 
   const loadProducts = async () => {
     setLoading(true);
-    // Simular llamada a API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    let filteredProducts = [...mockProducts];
-    
-    // Filtrar por categoría
-    if (selectedCategory && selectedCategory !== 'Todos') {
-      filteredProducts = filteredProducts.filter(p => p.category === selectedCategory);
-    }
-    
-    // Filtrar por búsqueda
-    if (searchTerm) {
-      filteredProducts = filteredProducts.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    // Ordenar
-    filteredProducts.sort((a, b) => {
-      if (sortBy === 'price') {
-        return sortOrder === 'asc' ? a.price - b.price : b.price - a.price;
-      } else if (sortBy === 'name') {
-        return sortOrder === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
-      } else {
-        return sortOrder === 'asc' ? new Date(a.createdAt) - new Date(b.createdAt) : new Date(b.createdAt) - new Date(a.createdAt);
+    try {
+      // Construir query params
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '12',
+      });
+
+      if (searchTerm) {
+        params.append('search', searchTerm);
       }
-    });
-    
-    setProducts(filteredProducts);
-    setTotalPages(Math.ceil(filteredProducts.length / 12));
-    setLoading(false);
+
+      if (selectedCategory && selectedCategory !== 'Todos') {
+        params.append('category_id', selectedCategory);
+      }
+
+      if (sortBy === 'price') {
+        params.append('sort', 'price');
+        params.append('order', sortOrder);
+      } else if (sortBy === 'name') {
+        params.append('sort', 'name');
+        params.append('order', sortOrder);
+      } else {
+        params.append('sort', 'created_at');
+        params.append('order', sortOrder);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/public/productos?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar productos');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        // Mapear datos del backend al formato esperado por el frontend
+        const mappedProducts = result.data.map(product => ({
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          price: parseFloat(product.price),
+          originalPrice: product.original_price ? parseFloat(product.original_price) : null,
+          image: product.image_url ? `${BACKEND_URL}${product.image_url}` : '/img/logo.jpg',
+          brand: product.brand || 'Sin marca',
+          category: product.category_name || 'Sin categoría',
+          rating: product.rating_average || 0,
+          reviews: product.rating_count || 0,
+          stock: product.stock || 0,
+          isFeatured: product.is_featured || false,
+          sku: product.sku,
+        }));
+
+        setProducts(mappedProducts);
+        setTotalPages(result.pagination?.pages || 1);
+      } else {
+        // Fallback a datos mock si no hay productos
+        console.warn('No se encontraron productos, usando datos mock');
+        setProducts(mockProducts);
+        setTotalPages(1);
+      }
+    } catch (error) {
+      console.error('Error cargando productos:', error);
+      toast.error('Error al cargar productos. Mostrando datos de ejemplo.');
+      // Fallback a datos mock en caso de error
+      setProducts(mockProducts);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSearch = (e) => {
@@ -222,6 +263,9 @@ const Productos = () => {
                     src={product.image}
                     alt={product.name}
                     className="w-full h-48 object-cover"
+                    onError={(e) => {
+                      e.target.src = '/img/logo.jpg';
+                    }}
                   />
                   {product.isFeatured && (
                     <div className="absolute top-2 left-2 bg-primary-500 text-white px-2 py-1 rounded text-xs font-semibold">

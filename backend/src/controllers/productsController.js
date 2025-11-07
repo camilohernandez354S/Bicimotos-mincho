@@ -3,6 +3,7 @@ const Category = require('../models/Category');
 
 // Obtener todos los productos (público)
 const getProducts = async (req, res) => {
+  console.log('🛍️ getProducts ejecutándose...');
   try {
     const { 
       page = 1, 
@@ -35,6 +36,7 @@ const getProducts = async (req, res) => {
     // Contar total
     const total = await Product.count(filters);
 
+    console.log(`✅ getProducts: ${products.length} productos encontrados (total: ${total})`);
     res.status(200).json({
       success: true,
       data: products,
@@ -47,16 +49,19 @@ const getProducts = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error obteniendo productos:', error);
+    console.error('❌ Error obteniendo productos:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
 // Obtener producto por ID (público)
 const getProductById = async (req, res) => {
+  console.log(`🔍 getProductById ejecutándose para ID: ${req.params.id}`);
   try {
     const { id } = req.params;
 
@@ -75,16 +80,19 @@ const getProductById = async (req, res) => {
     // Actualizar producto con las vistas incrementadas
     const updatedProduct = await Product.getById(id);
 
+    console.log(`✅ getProductById: Producto ${id} encontrado`);
     res.status(200).json({
       success: true,
       data: updatedProduct
     });
 
   } catch (error) {
-    console.error('Error obteniendo producto:', error);
+    console.error('❌ Error obteniendo producto:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
