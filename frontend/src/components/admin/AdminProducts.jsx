@@ -17,6 +17,17 @@ import { getWithAuth, deleteWithAuth, fetchWithAuth } from '../../utils/fetchWit
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
+const generateSKU = ({ name, brand, category }) => {
+  if (!name || !category) return '';
+
+  const catCode = category.replace(/[^a-zA-Z0-9]/g, '').substring(0, 2).toUpperCase().padEnd(2, 'X');
+  const brandCode = (brand || 'GEN').replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'N');
+  const nameCode = name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5).toUpperCase().padEnd(5, 'X');
+  const random = Math.floor(100 + Math.random() * 900);
+
+  return `${catCode}-${brandCode}-${nameCode}-${random}`;
+};
+
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -47,6 +58,31 @@ const AdminProducts = () => {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    if (editingProduct) return;
+    if (!formData.name || !formData.category_id) return;
+    if (!categories.length) return;
+
+    const selectedCategory = categories.find(
+      (cat) => String(cat.id) === String(formData.category_id)
+    );
+
+    if (!selectedCategory) return;
+
+    const newSku = generateSKU({
+      name: formData.name,
+      brand: formData.brand,
+      category: selectedCategory.name,
+    });
+
+    if (!newSku || formData.sku === newSku) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      sku: newSku,
+    }));
+  }, [formData.name, formData.category_id, formData.brand, categories, editingProduct]);
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -70,14 +106,17 @@ const AdminProducts = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_URL}/categories`);
+      const response = await fetch(`${API_URL}/public/categorias`);
       const data = await response.json();
-      
+
       if (data.success) {
-        setCategories(data.data || []);
+        setCategories((data.data || []).map(cat => ({ id: cat.id, name: cat.name })));
+      } else {
+        toast.error('No fue posible cargar las categorías');
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+      toast.error('Error al cargar las categorías');
     }
   };
 
@@ -90,7 +129,7 @@ const AdminProducts = () => {
         price: product.price || '',
         original_price: product.original_price || '',
         stock: product.stock || '',
-        category_id: product.category_id || '',
+        category_id: product.category_id ? String(product.category_id) : '',
         brand: product.brand || '',
         model: product.model || '',
         sku: product.sku || '',
@@ -176,6 +215,11 @@ const AdminProducts = () => {
       return;
     }
     
+    if (!formData.category_id) {
+      toast.error('Selecciona una categoría para el producto');
+      return;
+    }
+
     setSaving(true);
     
     try {
@@ -188,7 +232,7 @@ const AdminProducts = () => {
       formDataToSend.append('sku', formData.sku);
       formDataToSend.append('brand', formData.brand || '');
       formDataToSend.append('model', formData.model || '');
-      formDataToSend.append('category_id', formData.category_id || '');
+      formDataToSend.append('category_id', formData.category_id);
       formDataToSend.append('is_active', formData.is_active);
       formDataToSend.append('is_featured', formData.is_featured);
       
@@ -545,8 +589,9 @@ const AdminProducts = () => {
                     type="text"
                     name="sku"
                     value={formData.sku}
-                    onChange={handleInputChange}
                     className="input w-full"
+                    placeholder="Se generará automáticamente"
+                    readOnly
                     required
                   />
                 </div>
@@ -583,15 +628,16 @@ const AdminProducts = () => {
               {/* Categoría */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Categoría
+                  Categoría <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="category_id"
                   value={formData.category_id}
                   onChange={handleInputChange}
                   className="input w-full"
+                  required
                 >
-                  <option value="">Seleccionar categoría</option>
+                  <option value="">Selecciona una categoría</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}

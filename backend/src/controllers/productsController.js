@@ -1,5 +1,14 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const db = require('../config/database');
+
+const generateSKU = (name, brand, category) => {
+  const cat = (category || 'XX').replace(/[^a-zA-Z0-9]/g, '').substring(0, 2).toUpperCase().padEnd(2, 'X');
+  const br = (brand || 'GEN').replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'N');
+  const nm = (name || 'PROD').replace(/[^a-zA-Z0-9]/g, '').substring(0, 5).toUpperCase().padEnd(5, 'X');
+  const random = Math.floor(100 + Math.random() * 900);
+  return `${cat}-${br}-${nm}-${random}`;
+};
 
 // Obtener todos los productos (público)
 const getProducts = async (req, res) => {
@@ -195,6 +204,42 @@ const createProduct = async (req, res) => {
       });
     }
 
+    const { name: bodyName, brand: bodyBrand, category_id: bodyCategoryId } = req.body;
+    const parsedCategoryId = bodyCategoryId ? parseInt(bodyCategoryId, 10) : null;
+
+    if (!parsedCategoryId || Number.isNaN(parsedCategoryId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Debes seleccionar una categoría para el producto.'
+      });
+    }
+
+    let categoryName = 'General';
+    try {
+      const { rows: categoryRows } = await db.query('SELECT name, is_active FROM categories WHERE id = $1', [parsedCategoryId]);
+
+      if (!categoryRows.length || categoryRows[0].is_active === false) {
+        return res.status(400).json({
+          success: false,
+          message: 'La categoría seleccionada no es válida.'
+        });
+      }
+
+      categoryName = categoryRows[0].name || 'General';
+    } catch (error) {
+      console.error('Error verificando categoría:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error verificando la categoría del producto'
+      });
+    }
+
+    if (!req.body.sku || req.body.sku.trim() === '') {
+      req.body.sku = generateSKU(bodyName || '', bodyBrand || '', categoryName);
+    }
+
+    req.body.category_id = parsedCategoryId;
+
     // Los datos vienen directamente en req.body desde FormData procesado por multer
     const image_url = `/uploads/products/${req.file.filename}`;
     
@@ -227,6 +272,37 @@ const createProduct = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Nombre, descripción, precio y SKU son requeridos'
+      });
+    }
+
+    if (!data.category_id || Number.isNaN(data.category_id)) {
+      if (req.file) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Debes seleccionar una categoría para el producto.'
+      });
+    }
+
+    const category = await Category.getById(data.category_id);
+    if (!category || category.is_active === false) {
+      if (req.file) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'La categoría seleccionada no es válida.'
       });
     }
 
@@ -279,19 +355,6 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    // Si hay nueva imagen subida, usar su ruta y eliminar la anterior
-    if (req.file) {
-      // Eliminar imagen anterior si existe
-      if (currentProduct.image_url) {
-        const fs = require('fs');
-        const path = require('path');
-        const oldImagePath = path.join(__dirname, '../../', currentProduct.image_url);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
-    }
-
     // Los datos vienen directamente en req.body desde FormData procesado por multer
     const updateData = {};
     
@@ -306,9 +369,6 @@ const updateProduct = async (req, res) => {
     if (req.body.sku !== undefined) updateData.sku = req.body.sku;
     if (req.body.brand !== undefined) updateData.brand = req.body.brand || null;
     if (req.body.model !== undefined) updateData.model = req.body.model || null;
-    if (req.body.category_id !== undefined && req.body.category_id !== '') {
-      updateData.category_id = parseInt(req.body.category_id, 10);
-    }
     if (req.body.is_active !== undefined) {
       updateData.is_active = req.body.is_active === 'true' || req.body.is_active === true;
     }
@@ -316,8 +376,70 @@ const updateProduct = async (req, res) => {
       updateData.is_featured = req.body.is_featured === 'true' || req.body.is_featured === true;
     }
     
-    // Actualizar imagen si se subió nueva
+    let categoryIdToUse = currentProduct.category_id ? parseInt(currentProduct.category_id, 10) : null;
+
+    if (req.body.category_id !== undefined) {
+      const parsedCategoryId = parseInt(req.body.category_id, 10);
+      if (!parsedCategoryId || Number.isNaN(parsedCategoryId)) {
+        if (req.file) {
+          const fs = require('fs');
+          const path = require('path');
+          const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        }
+        return res.status(400).json({
+          success: false,
+          message: 'Debes seleccionar una categoría válida para el producto.'
+        });
+      }
+      categoryIdToUse = parsedCategoryId;
+    }
+
+    if (!categoryIdToUse || Number.isNaN(categoryIdToUse)) {
+      if (req.file) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'El producto debe pertenecer a una categoría.'
+      });
+    }
+
+    const category = await Category.getById(categoryIdToUse);
+    if (!category || category.is_active === false) {
+      if (req.file) {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '../../uploads/products', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'La categoría seleccionada no es válida.'
+      });
+    }
+
+    updateData.category_id = categoryIdToUse;
+
+    // Actualizar imagen si se subió nueva (eliminar la anterior después de validar)
     if (req.file) {
+      if (currentProduct.image_url) {
+        const fs = require('fs');
+        const path = require('path');
+        const oldImagePath = path.join(__dirname, '../../', currentProduct.image_url);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
       updateData.image_url = `/uploads/products/${req.file.filename}`;
     }
 
