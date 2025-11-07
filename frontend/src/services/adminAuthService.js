@@ -99,12 +99,19 @@ class AdminAuthService {
   }
 
   // Obtener headers con autorización
-  static getAuthHeaders() {
+  static getAuthHeaders(customHeaders = {}) {
     const token = this.getToken();
-    return {
+    const headers = {
       'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...customHeaders,
     };
+    
+    // Solo agregar Authorization si hay token
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
   }
 
   // Cambiar contraseña

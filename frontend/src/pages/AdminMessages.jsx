@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { MessageSquare, Mail, Phone, Clock, X, Trash2, CheckCircle } from 'lucide-react';
 import AdminMessageCard from '../components/admin/AdminMessageCard';
-import AdminAuthService from '../services/adminAuthService';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { getWithAuth, patchWithAuth, deleteWithAuth } from '../utils/fetchWithAuth';
 
 const AdminMessages = () => {
   const [messages, setMessages] = useState([]);
@@ -13,10 +11,7 @@ const AdminMessages = () => {
 
   const fetchMessages = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/mensajes`, {
-        method: 'GET',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await getWithAuth('/admin/mensajes');
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -38,10 +33,7 @@ const AdminMessages = () => {
 
   const markAsRead = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/mensajes/${id}/read`, {
-        method: 'PATCH',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await patchWithAuth(`/admin/mensajes/${id}/read`);
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -69,10 +61,7 @@ const AdminMessages = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/mensajes/${id}`, {
-        method: 'DELETE',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await deleteWithAuth(`/admin/mensajes/${id}`);
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);

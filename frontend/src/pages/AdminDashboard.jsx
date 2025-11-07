@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import AdminAuthService from '../services/adminAuthService';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { fetchWithAuth } from '../utils/fetchWithAuth';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -15,15 +13,10 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const url = `${API_BASE_URL}/admin/dashboard`;
-        const headers = AdminAuthService.getAuthHeaders();
+        console.log('📡 Obteniendo estadísticas desde /admin/dashboard');
         
-        console.log('📡 Obteniendo estadísticas desde:', url);
-        console.log('🔑 Headers:', headers);
-        
-        const response = await fetch(url, {
+        const response = await fetchWithAuth('/admin/dashboard', {
           method: 'GET',
-          headers: headers,
         });
 
         console.log('📥 Respuesta recibida:', response.status, response.statusText);

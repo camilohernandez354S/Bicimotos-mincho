@@ -12,7 +12,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import AdminAuthService from '../../services/adminAuthService';
+import { getWithAuth, deleteWithAuth, fetchWithAuth } from '../../utils/fetchWithAuth';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
@@ -50,9 +50,7 @@ const AdminProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/admin/products`, {
-        headers: AdminAuthService.getAuthHeaders()
-      });
+      const response = await getWithAuth('/admin/products');
       
       const data = await response.json();
       
@@ -199,20 +197,13 @@ const AdminProducts = () => {
       }
       
       const url = editingProduct 
-        ? `${API_URL}/admin/products/${editingProduct.id}`
-        : `${API_URL}/admin/products`;
+        ? `/admin/products/${editingProduct.id}`
+        : `/admin/products`;
       
       const method = editingProduct ? 'PUT' : 'POST';
       
-      // Para FormData, NO establecer Content-Type manualmente
-      // El navegador lo establece automáticamente con el boundary correcto
-      const headers = AdminAuthService.getAuthHeaders();
-      // Eliminar Content-Type si existe para que el navegador lo establezca automáticamente
-      delete headers['Content-Type'];
-      
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method,
-        headers,
         body: formDataToSend
       });
       
@@ -239,10 +230,7 @@ const AdminProducts = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/admin/products/${id}`, {
-        method: 'DELETE',
-        headers: AdminAuthService.getAuthHeaders()
-      });
+      const response = await deleteWithAuth(`/admin/products/${id}`);
       
       const data = await response.json();
       

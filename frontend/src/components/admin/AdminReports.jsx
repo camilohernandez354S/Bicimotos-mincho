@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { TrendingUp, BarChart3, DollarSign, Users, Package, MessageSquare, FileDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import AdminAuthService from '../../services/adminAuthService';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { getWithAuth } from '../../utils/fetchWithAuth';
 
 const AdminReports = () => {
   const [summary, setSummary] = useState({
@@ -20,10 +18,7 @@ const AdminReports = () => {
 
   const fetchSummary = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/reportes`, {
-        method: 'GET',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await getWithAuth('/admin/reportes');
 
       if (!response.ok) {
         throw new Error('Error al obtener reportes');
@@ -45,10 +40,7 @@ const AdminReports = () => {
     try {
       toast.loading('Generando PDF...', { id: 'pdf-export' });
       
-      const response = await fetch(`${API_BASE_URL}/admin/reportes/export/pdf`, {
-        method: 'GET',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await getWithAuth('/admin/reportes/export/pdf');
 
       if (!response.ok) {
         throw new Error('Error al generar PDF');

@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
+import AdminAuthService from '../../services/adminAuthService';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Verificar si hay token al montar el componente
+    const token = AdminAuthService.getToken();
+    if (!token) {
+      console.warn('⚠️ No hay token de autenticación. Redirigiendo al login...');
+      navigate('/admin/login', { replace: true });
+    }
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

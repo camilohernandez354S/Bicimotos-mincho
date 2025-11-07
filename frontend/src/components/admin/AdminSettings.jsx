@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Save, Eye, EyeOff, Upload, User, Mail, Lock, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import AdminAuthService from '../../services/adminAuthService';
+import { getWithAuth, putWithAuth, fetchWithAuth } from '../../utils/fetchWithAuth';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -28,10 +28,7 @@ const AdminSettings = () => {
 
   const fetchConfig = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/configuracion`, {
-        method: 'GET',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await getWithAuth('/admin/configuracion');
 
       if (!response.ok) {
         throw new Error('Error al obtener configuración');
@@ -60,16 +57,9 @@ const AdminSettings = () => {
 
     setSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/configuracion`, {
-        method: 'PUT',
-        headers: {
-          ...AdminAuthService.getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: config.name || '',
-          email: config.email,
-        }),
+      const response = await putWithAuth('/admin/configuracion', {
+        name: config.name || '',
+        email: config.email,
       });
 
       const result = await response.json();
@@ -105,16 +95,9 @@ const AdminSettings = () => {
 
     setSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/configuracion/password`, {
-        method: 'PUT',
-        headers: {
-          ...AdminAuthService.getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          currentPassword: passwords.currentPassword,
-          newPassword: passwords.newPassword,
-        }),
+      const response = await putWithAuth('/admin/configuracion/password', {
+        currentPassword: passwords.currentPassword,
+        newPassword: passwords.newPassword,
       });
 
       const result = await response.json();
@@ -169,9 +152,8 @@ const AdminSettings = () => {
       const formData = new FormData();
       formData.append('logo', logoFile);
 
-      const response = await fetch(`${API_BASE_URL}/admin/configuracion/logo`, {
+      const response = await fetchWithAuth('/admin/configuracion/logo', {
         method: 'POST',
-        headers: AdminAuthService.getAuthHeaders(),
         body: formData,
       });
 

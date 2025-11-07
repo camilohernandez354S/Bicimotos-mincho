@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { ShoppingCart, User, Mail, Phone, Calendar, X, Trash2, Package, DollarSign } from 'lucide-react';
 import AdminOrderCard from '../components/admin/AdminOrderCard';
-import AdminAuthService from '../services/adminAuthService';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { getWithAuth, patchWithAuth, deleteWithAuth } from '../utils/fetchWithAuth';
 
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -13,10 +11,7 @@ const AdminOrders = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/ordenes`, {
-        method: 'GET',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await getWithAuth('/admin/ordenes');
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -38,10 +33,7 @@ const AdminOrders = () => {
 
   const fetchOrderDetails = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/ordenes/${id}`, {
-        method: 'GET',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await getWithAuth(`/admin/ordenes/${id}`);
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -59,14 +51,7 @@ const AdminOrders = () => {
 
   const updateStatus = async (id, status) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/ordenes/${id}/status`, {
-        method: 'PATCH',
-        headers: {
-          ...AdminAuthService.getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status }),
-      });
+      const response = await patchWithAuth(`/admin/ordenes/${id}/status`, { status });
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -97,10 +82,7 @@ const AdminOrders = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/ordenes/${id}`, {
-        method: 'DELETE',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await deleteWithAuth(`/admin/ordenes/${id}`);
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);

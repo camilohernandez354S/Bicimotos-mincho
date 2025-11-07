@@ -12,9 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import clsx from 'clsx';
-import AdminAuthService from '../../services/adminAuthService';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { getWithAuth } from '../../utils/fetchWithAuth';
 
 const AdminSidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
@@ -23,10 +21,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
   const fetchUnreadCount = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/mensajes/count/unread`, {
-        method: 'GET',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await getWithAuth('/admin/mensajes/count/unread');
 
       if (response.ok) {
         const result = await response.json();
@@ -42,10 +37,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
   const fetchPendingOrders = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/ordenes/count/pending`, {
-        method: 'GET',
-        headers: AdminAuthService.getAuthHeaders(),
-      });
+      const response = await getWithAuth('/admin/ordenes/count/pending');
 
       if (response.ok) {
         const result = await response.json();
