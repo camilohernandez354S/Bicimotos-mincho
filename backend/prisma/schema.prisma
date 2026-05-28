@@ -1,0 +1,61 @@
+// Schema de Prisma — define el modelo de datos de Bicimotos Mincho
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// CATEGORIA — agrupa productos: Bicicletas, Marcos, Accesorios, Componentes
+// ============================================================
+model Categoria {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  slug      String     @unique
+  productos Producto[]
+
+  @@map("categorias")
+}
+
+// ============================================================
+// PRODUCTO — el modelo central del catálogo
+// ============================================================
+model Producto {
+  id           Int      @id @default(autoincrement())
+  nombre       String
+  descripcion  String?
+  precio       Decimal  @db.Decimal(12, 2)
+  stock        Int      @default(0)
+  marca        String?
+  modelo       String?
+  imagenes     String[] // URLs de Cloudinary
+  destacado    Boolean  @default(false)
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  categoriaId  Int
+  categoria    Categoria @relation(fields: [categoriaId], references: [id])
+
+  @@index([categoriaId])
+  @@index([activo])
+  @@map("productos")
+}
+
+// ============================================================
+// ADMIN — usuarios que pueden gestionar el catálogo
+// ============================================================
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String   // hasheada con bcrypt
+  nombre    String
+  creadoEn  DateTime @default(now())
+
+  @@map("admins")
+}
