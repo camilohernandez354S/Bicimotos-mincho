@@ -6,6 +6,7 @@ import productosRoutes from "./routes/productos.routes.js";
 import categoriasRoutes from "./routes/categorias.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminProductosRoutes from "./routes/admin.productos.routes.js";
+import adminUploadRoutes from "./routes/admin.upload.routes.js";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/productos", productosRoutes);
 app.use("/api/categorias", categoriasRoutes);
 app.use("/api/admin/productos", adminProductosRoutes);
+app.use("/api/admin/upload", adminUploadRoutes);
 
 // Manejador global de errores
 app.use((err, req, res, next) => {
