@@ -5,6 +5,7 @@ import cors from "cors";
 import productosRoutes from "./routes/productos.routes.js";
 import categoriasRoutes from "./routes/categorias.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import adminProductosRoutes from "./routes/admin.productos.routes.js";
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/productos", productosRoutes);
 app.use("/api/categorias", categoriasRoutes);
+app.use("/api/admin/productos", adminProductosRoutes);
 
 // Manejador global de errores
 app.use((err, req, res, next) => {
