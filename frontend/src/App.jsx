@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound.jsx";
 import Login from "./pages/admin/Login.jsx";
 import Dashboard from "./pages/admin/Dashboard.jsx";
 import ProductosAdmin from "./pages/admin/Productos.jsx";
+import ProductoForm from "./pages/admin/ProductoForm.jsx";
 
 export default function App() {
   return (
@@ -39,6 +40,8 @@ export default function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="productos" element={<ProductosAdmin />} />
+        <Route path="productos/nuevo" element={<ProductoForm />} />
+        <Route path="productos/:id/editar" element={<ProductoForm />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

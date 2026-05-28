@@ -57,6 +57,7 @@ export const api = {
   admin: {
     productos: {
       listar: () => request("/admin/productos"),
+      obtener: (id) => request(`/admin/productos/${id}`),
       crear: (data) => request("/admin/productos", { method: "POST", body: JSON.stringify(data) }),
       editar: (id, data) =>
         request(`/admin/productos/${id}`, { method: "PUT", body: JSON.stringify(data) }),

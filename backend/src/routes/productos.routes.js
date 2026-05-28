@@ -18,8 +18,11 @@ router.get("/:id", async (req, res) => {
   const id = Number(req.params.id);
   if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido" });
 
-  const producto = await prisma.producto.findUnique({
-    where: { id },
+  // findFirst para poder filtrar por activo además del id —
+  // un usuario que llega por URL directa a un producto desactivado debe ver 404,
+  // no el producto oculto.
+  const producto = await prisma.producto.findFirst({
+    where: { id, activo: true },
     include: { categoria: true },
   });
 

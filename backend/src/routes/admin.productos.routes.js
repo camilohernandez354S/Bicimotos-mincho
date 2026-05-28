@@ -17,6 +17,21 @@ router.get("/", async (req, res) => {
   res.json(productos);
 });
 
+// GET /api/admin/productos/:id — detalle de un producto (incluye inactivos,
+// a diferencia del endpoint público que solo devuelve activos)
+router.get("/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "ID inválido" });
+
+  const producto = await prisma.producto.findUnique({
+    where: { id },
+    include: { categoria: true },
+  });
+
+  if (!producto) return res.status(404).json({ error: "Producto no encontrado" });
+  res.json(producto);
+});
+
 // POST /api/admin/productos — crear producto
 router.post("/", async (req, res) => {
   const {
