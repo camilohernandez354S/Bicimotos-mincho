@@ -4,6 +4,7 @@ import cors from "cors";
 
 import productosRoutes from "./routes/productos.routes.js";
 import categoriasRoutes from "./routes/categorias.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", service: "bicimotos-api" });
 });
 
+app.use("/api/auth", authRoutes);
 app.use("/api/productos", productosRoutes);
 app.use("/api/categorias", categoriasRoutes);
 
