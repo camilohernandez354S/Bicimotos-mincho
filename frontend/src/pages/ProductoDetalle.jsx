@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { api } from "../services/api.js";
 import { usePageMeta } from "../hooks/usePageMeta.js";
+import { cldImage } from "../utils/cloudinary.js";
 
 const PLACEHOLDER = "https://placehold.co/800x600/e5e7eb/9ca3af?text=Sin+foto";
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER;
@@ -70,7 +71,7 @@ export default function ProductoDetalle() {
         <div>
           <div className="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
             <img
-              src={imagenes[imagenActiva]}
+              src={cldImage(imagenes[imagenActiva], { w: 1000, h: 750 })}
               alt={producto.nombre}
               className="w-full h-full object-cover"
             />
@@ -85,7 +86,11 @@ export default function ProductoDetalle() {
                     idx === imagenActiva ? "border-orange-500" : "border-transparent"
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={cldImage(img, { w: 160, h: 160 })}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>

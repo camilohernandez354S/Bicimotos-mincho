@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { api } from "../../services/api.js";
 import { usePageMeta } from "../../hooks/usePageMeta.js";
+import { cldImage } from "../../utils/cloudinary.js";
 
 const PLACEHOLDER_IMG = "https://placehold.co/80x80/e5e7eb/9ca3af?text=?";
 
@@ -99,7 +100,7 @@ export default function Productos() {
             <tr key={p.id} className="hover:bg-gray-50">
               <td className="p-3">
                 <img
-                  src={p.imagenes?.[0] || PLACEHOLDER_IMG}
+                  src={cldImage(p.imagenes?.[0], { w: 96, h: 96 }) || PLACEHOLDER_IMG}
                   alt={p.nombre}
                   className="w-12 h-12 object-cover rounded"
                 />

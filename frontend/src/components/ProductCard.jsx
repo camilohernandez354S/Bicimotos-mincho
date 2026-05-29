@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 
+import { cldImage } from "../utils/cloudinary.js";
+
 const PLACEHOLDER = "https://placehold.co/600x400/e5e7eb/9ca3af?text=Sin+foto";
 
 function formatPrecio(precio) {
@@ -11,7 +13,8 @@ function formatPrecio(precio) {
 }
 
 export default function ProductCard({ producto }) {
-  const imagen = producto.imagenes?.[0] || PLACEHOLDER;
+  // Cards en grilla: máx 400px de ancho en desktop, menos en tablet
+  const imagen = cldImage(producto.imagenes?.[0], { w: 600, h: 400 }) || PLACEHOLDER;
 
   return (
     <Link

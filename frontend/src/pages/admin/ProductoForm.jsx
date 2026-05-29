@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../../services/api.js";
 import { usePageMeta } from "../../hooks/usePageMeta.js";
+import { cldImage } from "../../utils/cloudinary.js";
 
 const ESTADO_INICIAL = {
   nombre: "",
@@ -230,7 +231,7 @@ export default function ProductoForm() {
               {form.imagenes.map((url) => (
                 <div key={url} className="relative w-24 h-24">
                   <img
-                    src={url}
+                    src={cldImage(url, { w: 192, h: 192 })}
                     alt=""
                     className="w-full h-full object-cover rounded border border-gray-200"
                   />
