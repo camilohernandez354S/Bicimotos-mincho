@@ -2,8 +2,11 @@ import { useState } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 
 import { useAuth } from "../../context/AuthContext.jsx";
+import { usePageMeta } from "../../hooks/usePageMeta.js";
 
 export default function Login() {
+  usePageMeta({ title: "Login admin" });
+
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

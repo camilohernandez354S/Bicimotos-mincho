@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../../services/api.js";
+import { usePageMeta } from "../../hooks/usePageMeta.js";
 
 const PLACEHOLDER_IMG = "https://placehold.co/80x80/e5e7eb/9ca3af?text=?";
 
@@ -14,6 +15,8 @@ function formatPrecio(precio) {
 }
 
 export default function Productos() {
+  usePageMeta({ title: "Productos · Admin" });
+
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [busqueda, setBusqueda] = useState("");

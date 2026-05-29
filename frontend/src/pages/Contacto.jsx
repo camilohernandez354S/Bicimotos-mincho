@@ -1,9 +1,16 @@
+import { usePageMeta } from "../hooks/usePageMeta.js";
+
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER;
 const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
   "Hola! Quería hacerles una consulta."
 )}`;
 
 export default function Contacto() {
+  usePageMeta({
+    title: "Contacto",
+    description: "Escribinos por WhatsApp y te respondemos en el día.",
+  });
+
   return (
     <section className="max-w-3xl mx-auto px-4 py-16">
       <h1 className="text-3xl font-bold text-gray-900">Contacto</h1>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../../services/api.js";
+import { usePageMeta } from "../../hooks/usePageMeta.js";
 
 const ESTADO_INICIAL = {
   nombre: "",
@@ -21,6 +22,8 @@ export default function ProductoForm() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const esEdicion = Boolean(id);
+
+  usePageMeta({ title: esEdicion ? "Editar producto · Admin" : "Nuevo producto · Admin" });
 
   const [form, setForm] = useState(ESTADO_INICIAL);
   const [categorias, setCategorias] = useState([]);

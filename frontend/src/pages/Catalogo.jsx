@@ -2,8 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 
 import { api } from "../services/api.js";
 import ProductCard from "../components/ProductCard.jsx";
+import { usePageMeta } from "../hooks/usePageMeta.js";
 
 export default function Catalogo() {
+  usePageMeta({
+    title: "Catálogo",
+    description:
+      "Explorá todas nuestras bicicletas, marcos, accesorios y componentes. Filtrá por categoría y buscá por nombre.",
+  });
+
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [categoriaActiva, setCategoriaActiva] = useState("todas");

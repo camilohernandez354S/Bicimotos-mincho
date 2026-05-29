@@ -3,8 +3,15 @@ import { Link } from "react-router-dom";
 
 import { api } from "../services/api.js";
 import ProductCard from "../components/ProductCard.jsx";
+import { usePageMeta } from "../hooks/usePageMeta.js";
 
 export default function Home() {
+  usePageMeta({
+    title: "Bicimotos Mincho — Bicicletas, accesorios y componentes",
+    description:
+      "Tu bicicletería de confianza. Bicicletas completas, marcos, accesorios y componentes. Consultá por WhatsApp.",
+  });
+
   const [destacados, setDestacados] = useState([]);
   const [cargando, setCargando] = useState(true);
 

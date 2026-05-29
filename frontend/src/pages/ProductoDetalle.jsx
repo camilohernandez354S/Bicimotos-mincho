@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { api } from "../services/api.js";
+import { usePageMeta } from "../hooks/usePageMeta.js";
 
 const PLACEHOLDER = "https://placehold.co/800x600/e5e7eb/9ca3af?text=Sin+foto";
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER;
@@ -34,6 +35,12 @@ export default function ProductoDetalle() {
       .catch((err) => setError(err.message))
       .finally(() => setCargando(false));
   }, [id]);
+
+  // Título dinámico — se actualiza cuando el producto se carga.
+  usePageMeta({
+    title: producto?.nombre,
+    description: producto?.descripcion || undefined,
+  });
 
   if (cargando) {
     return <div className="max-w-6xl mx-auto px-4 py-12 text-gray-500">Cargando producto...</div>;

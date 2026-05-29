@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../../services/api.js";
+import { usePageMeta } from "../../hooks/usePageMeta.js";
 
 export default function Dashboard() {
+  usePageMeta({ title: "Dashboard admin" });
+
   const [stats, setStats] = useState({ total: 0, activos: 0, destacados: 0 });
   const [cargando, setCargando] = useState(true);
 
